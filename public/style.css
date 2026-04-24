@@ -1,1 +1,58 @@
-.
+body {
+    background: #0a0a0a;
+    font-family: 'Courier New', monospace;
+    color: #0f0;
+    margin: 0;
+    padding: 20px;
+}
+
+.terminal {
+    background: #000;
+    border: 2px solid #0f0;
+    padding: 20px;
+    max-width: 800px;
+    margin: auto;
+    box-shadow: 0 0 20px rgba(0,255,0,0.3);
+}
+
+.terminal-input {
+    background: #000;
+    border: 1px solid #0f0;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    padding: 5px;
+    margin: 10px 0;
+}
+
+.terminal-btn {
+    background: #000;
+    border: 1px solid #0f0;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    padding: 8px 15px;
+    margin: 5px;
+    cursor: pointer;
+}
+
+.terminal-btn:hover {
+    background: #0f0;
+    color: #000;
+}
+
+.messages-box {
+    height: 400px;
+    overflow-y: auto;
+    border: 1px solid #0f0;
+    padding: 10px;
+    margin: 10px 0;
+    background: #000;
+}
+
+.input-line {
+    margin: 10px 0;
+}
+
+pre {
+    color: #0f0;
+    font-size: 12px;
+}
