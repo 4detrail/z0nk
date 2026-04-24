@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>⚡ ASCII CHAT ⚡</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="terminal" id="app">
+        <pre id="ascii-header">
+╔══════════════════════════════════════════════════════════╗
+║     ██╗  ██╗███████╗██╗  ██╗ █████╗ ██╗  ██╗ █████╗     ║
+║     ██║  ██║██╔════╝╚██╗██╔╝██╔══██╗██║  ██║██╔══██╗    ║
+║     ███████║█████╗   ╚███╔╝ ███████║███████║███████║    ║
+║     ██╔══██║██╔══╝   ██╔██╗ ██╔══██║██╔══██║██╔══██║    ║
+║     ██║  ██║███████╗██╔╝ ██╗██║  ██║██║  ██║██║  ██║    ║
+║     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝    ║
+║                                                          ║
+║              ══ ANONYMOUS TERMINAL CHAT ══              ║
+╚══════════════════════════════════════════════════════════╝
+        </pre>
+        
+        <div id="login-view">
+            <div class="input-line">USERNAME: <input type="text" id="username" class="terminal-input"></div>
+            <div class="input-line">PASSWORD: <input type="password" id="password" class="terminal-input"></div>
+            <button onclick="login()" class="terminal-btn">[ LOGIN ]</button>
+            <button onclick="register()" class="terminal-btn">[ REGISTER ]</button>
+        </div>
+        
+        <div id="chat-view" style="display:none">
+            <div id="messages" class="messages-box"></div>
+            <div class="input-line">MESSAGE: <input type="text" id="message" class="terminal-input"></div>
+            <button onclick="sendMessage()" class="terminal-btn">[ SEND ]</button>
+            <button onclick="logout()" class="terminal-btn">[ LOGOUT ]</button>
+        </div>
+    </div>
+    
+    <script>
+        let currentUser = null;
+        let token = null;
+        
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                currentUser = data.username;
+                token = data.token;
+                document.getElementById('login-view').style.display = 'none';
+                document.getElementById('chat-view').style.display = 'block';
+                loadMessages();
+                setInterval(loadMessages, 3000);
+            } else {
+                alert('Giriş başarısız!');
+            }
+        }
+        
+        async function register() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const res = await fetch('/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            
+            if (res.ok) {
+                alert('Kayıt başarılı! Şimdi giriş yap.');
+            } else {
+                alert('Kullanıcı adı alınmış!');
+            }
+        }
+        
+        async function sendMessage() {
+            const message = document.getElementById('message').value;
+            await fetch('/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    from: currentUser,
+                    to: 'everyone',
+                    message: message,
+                    token: token
+                })
+            });
+            document.getElementById('message').value = '';
+            loadMessages();
+        }
+        
+        async function loadMessages() {
+            const res = await fetch('/messages', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: currentUser, token: token})
+            });
+            const messages = await res.json();
+            const box = document.getElementById('messages');
+            box.innerHTML = messages.map(m => 
+                `> [${m.timestamp}] @${m.from_user}: ${m.message}`
+            ).join('<br>');
+            box.scrollTop = box.scrollHeight;
+        }
+        
+        function logout() {
+            currentUser = null;
+            token = null;
+            document.getElementById('login-view').style.display = 'block';
+            document.getElementById('chat-view').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
