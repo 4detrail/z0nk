@@ -10,14 +10,100 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
 
-// JSON dosya tabanlı veritabanı
+// ============ GITHUB YEDEKLEME AYARLARI ============
+const GITHUB_TOKEN = "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";
+const GITHUB_REPO = "4detrail/z0nk";  // Repo adın düzeltildi
+const GITHUB_BACKUP_FILE = "backup/chat_data.json";
+
+// Veri dosyaları
 let users = [];
 let rooms = [];
 let messages = [];
 let userRooms = [];
 let userActivity = {};
 
-// Veri dosyalarını yükle
+// ============ YEDEKLEME FONKSİYONLARI ============
+
+async function backupToGitHub() {
+    try {
+        const backupData = {
+            users: users,
+            rooms: rooms,
+            messages: messages,
+            userRooms: userRooms,
+            userActivity: userActivity,
+            lastBackup: new Date().toISOString()
+        };
+        
+        let sha = null;
+        try {
+            const getRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_BACKUP_FILE}`, {
+                headers: {
+                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            if (getRes.ok) {
+                const data = await getRes.json();
+                sha = data.sha;
+            }
+        } catch(e) {}
+        
+        const content = Buffer.from(JSON.stringify(backupData, null, 2)).toString('base64');
+        const putRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_BACKUP_FILE}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify({
+                message: `Backup - ${new Date().toISOString()}`,
+                content: content,
+                sha: sha
+            })
+        });
+        
+        if (putRes.ok) {
+            console.log(`✅ GitHub yedekleme başarılı - ${new Date().toLocaleTimeString()}`);
+        }
+    } catch(e) {
+        console.error("GitHub yedekleme hatası:", e.message);
+    }
+}
+
+async function restoreFromGitHub() {
+    try {
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_BACKUP_FILE}`, {
+            headers: {
+                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            const content = Buffer.from(data.content, 'base64').toString('utf8');
+            const backupData = JSON.parse(content);
+            
+            users = backupData.users || [];
+            rooms = backupData.rooms || [];
+            messages = backupData.messages || [];
+            userRooms = backupData.userRooms || [];
+            userActivity = backupData.userActivity || {};
+            
+            console.log(`✅ GitHub'dan geri yükleme başarılı - ${users.length} kullanıcı, ${rooms.length} oda`);
+            saveData();
+            return true;
+        }
+    } catch(e) {
+        console.log("GitHub geri yükleme yapılamadı (ilk çalıştırma olabilir)");
+    }
+    return false;
+}
+
+// ============ DOSYA İŞLEMLERİ ============
+
 const loadData = () => {
     try {
         if(fs.existsSync('users.json')) users = JSON.parse(fs.readFileSync('users.json', 'utf8'));
@@ -36,7 +122,12 @@ const saveData = () => {
     fs.writeFileSync('userActivity.json', JSON.stringify(userActivity, null, 2));
 };
 
-loadData();
+// ============ OTOMATİK YEDEKLEME (Her 5 dakika) ============
+setInterval(() => {
+    if (users.length > 0 || rooms.length > 0) {
+        backupToGitHub();
+    }
+}, 5 * 60 * 1000);
 
 // ============ OTOMATİK MESAJ SİLME (20 dakika) ============
 setInterval(() => {
@@ -52,6 +143,7 @@ setInterval(() => {
     if (messages.length !== beforeCount) {
         console.log(`🗑️ ${beforeCount - messages.length} eski mesaj silindi (20 dakika)`);
         saveData();
+        backupToGitHub();
     }
 }, 60 * 1000);
 
@@ -101,6 +193,7 @@ app.post('/register', async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     users.push({ username, password: hashed, created_at: new Date().toISOString() });
     saveData();
+    backupToGitHub();
     res.json({ success: true });
 });
 
@@ -148,6 +241,7 @@ app.post('/create_room', async (req, res) => {
             users: [username]
         });
         saveData();
+        backupToGitHub();
         res.json({ success: true, room_code });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
@@ -189,22 +283,20 @@ app.post('/delete_room', (req, res) => {
             return res.status(403).json({ error: 'Bu odayı sadece oluşturan kişi silebilir!' });
         }
         
-        // Odadaki TÜM mesajları sil
         const deletedMsgCount = messages.filter(m => m.room_code === room_code).length;
         messages = messages.filter(m => m.room_code !== room_code);
         
-        // Odadaki tüm kullanıcıları userRooms'dan temizle
         for (const user of room.users) {
             const urIdx = userRooms.findIndex(u => u.username === user && u.current_room === room_code);
             if (urIdx !== -1) userRooms.splice(urIdx, 1);
         }
         
-        // Odayı sil
         const roomIdx = rooms.findIndex(r => r.room_code === room_code);
         rooms.splice(roomIdx, 1);
         
         console.log(`🗑️ Oda ${room_code} silindi, ${deletedMsgCount} mesaj temizlendi`);
         saveData();
+        backupToGitHub();
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
@@ -304,7 +396,6 @@ app.post('/messages', (req, res) => {
         
         userActivity[username] = Date.now();
         
-        // SADECE kullanıcının aktif odasındaki mesajları getir (en eski mesajlar önce)
         const roomMessages = messages
             .filter(m => m.room_code === ur.current_room)
             .slice(-100);
@@ -332,10 +423,17 @@ app.post('/logout', (req, res) => {
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
+// ============ SUNUCU BAŞLAT ============
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
+
+restoreFromGitHub().then(() => {
+    loadData();
     console.log(`\n🔥 HEXAHACK IAIM CHAT SİSTEMİ AKTİF!`);
     console.log(`📍 http://localhost:${PORT}`);
     console.log(`⏰ Mesajlar 20 dakika sonra otomatik silinecek`);
     console.log(`🗑️ AFK kullanıcılar 10 dakika sonra atılacak`);
+    console.log(`💾 GitHub yedekleme aktif - Her 5 dakikada bir yedekleniyor`);
+    console.log(`📁 Yedekler: https://github.com/${GITHUB_REPO}/tree/master/backup`);
 });
+
+app.listen(PORT, '0.0.0.0', () => {});
