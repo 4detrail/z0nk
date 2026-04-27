@@ -1,393 +1,686 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>⚡ ASCII CHAT - ROOM SYSTEM ⚡</title>
+    <title>⚡ ASCII CHAT - ULTIMATE EDITION ⚡</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {
-            background: #0a0a0a;
-            font-family: 'Courier New', monospace;
-            color: #0f0;
+        * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
+
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #0a2a0a 50%, #0a0a0a 100%);
+            font-family: 'Courier New', 'Fira Code', monospace;
+            color: #0f0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animasyonlu arka plan ışıkları */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 50%, rgba(0,255,0,0.05) 0%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 80% 50%, rgba(0,255,255,0.05) 0%, transparent 50%);
+            animation: pulse 5s ease-in-out infinite reverse;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* Ana terminal kutusu */
         .terminal {
-            background: #000;
+            background: rgba(0, 0, 0, 0.95);
             border: 2px solid #0f0;
-            padding: 20px;
-            max-width: 1000px;
-            margin: auto;
-            box-shadow: 0 0 20px rgba(0,255,0,0.3);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            box-shadow: 
+                0 0 40px rgba(0,255,0,0.3),
+                inset 0 0 20px rgba(0,255,0,0.1);
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(5px);
+            animation: glowPulse 2s ease-in-out infinite;
+            transition: all 0.3s;
         }
-        
+
+        @keyframes glowPulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(0,255,0,0.3), inset 0 0 10px rgba(0,255,0,0.1);
+                border-color: #0f0;
+            }
+            50% {
+                box-shadow: 0 0 50px rgba(0,255,0,0.6), inset 0 0 30px rgba(0,255,0,0.2);
+                border-color: #0ff;
+            }
+        }
+
+        /* ASCII başlık animasyonu */
+        pre {
+            color: #0f0;
+            font-size: 9px;
+            overflow-x: auto;
+            margin-bottom: 30px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            text-align: center;
+            animation: textGlitch 3s ease-in-out infinite;
+            position: relative;
+            line-height: 1.2;
+        }
+
+        @keyframes textGlitch {
+            0%, 100% { text-shadow: 2px 0 0 rgba(0,255,0,0.5), -2px 0 0 rgba(0,255,255,0.3); }
+            25% { text-shadow: -2px 0 0 rgba(0,255,0,0.5), 2px 0 0 rgba(0,255,255,0.3); }
+            50% { text-shadow: 2px 0 0 rgba(0,255,255,0.5), -2px 0 0 rgba(0,255,0,0.3); }
+            75% { text-shadow: -2px 0 0 rgba(0,255,255,0.5), 2px 0 0 rgba(0,255,0,0.3); }
+        }
+
+        /* Input kutuları */
+        .input-line {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
         .terminal-input {
-            background: #000;
+            background: rgba(0, 0, 0, 0.8);
             border: 1px solid #0f0;
             color: #0f0;
-            font-family: 'Courier New', monospace;
-            padding: 5px;
-            margin: 10px 0;
+            font-family: monospace;
+            padding: 12px 16px;
+            font-size: 14px;
+            width: 280px;
+            transition: all 0.3s;
+            border-radius: 8px;
         }
-        
+
+        .terminal-input:focus {
+            outline: none;
+            border-color: #0ff;
+            box-shadow: 0 0 15px rgba(0,255,255,0.5);
+            transform: scale(1.02);
+            background: rgba(0, 50, 0, 0.9);
+        }
+
+        /* Butonlar */
         .terminal-btn {
-            background: #000;
+            background: linear-gradient(135deg, #000 0%, #0a0a0a 100%);
             border: 1px solid #0f0;
             color: #0f0;
-            font-family: 'Courier New', monospace;
-            padding: 8px 15px;
+            font-family: monospace;
+            padding: 10px 20px;
             margin: 5px;
             cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        .terminal-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,255,0,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .terminal-btn:hover::before {
+            left: 100%;
+        }
+
         .terminal-btn:hover {
             background: #0f0;
             color: #000;
+            box-shadow: 0 0 20px #0f0;
+            transform: translateY(-2px) scale(1.05);
         }
-        
+
+        .terminal-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Mesaj kutusu */
         .messages-box {
-            height: 400px;
+            height: 450px;
             overflow-y: auto;
             border: 1px solid #0f0;
-            padding: 10px;
-            margin: 10px 0;
+            padding: 15px;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .messages-box::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .messages-box::-webkit-scrollbar-track {
             background: #000;
+            border-radius: 10px;
         }
-        
-        .input-line {
-            margin: 10px 0;
-        }
-        
-        pre {
-            color: #0f0;
-            font-size: 11px;
-            margin: 0;
-        }
-        
-        .room-status {
+
+        .messages-box::-webkit-scrollbar-thumb {
             background: #0f0;
+            border-radius: 10px;
+            animation: scrollGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes scrollGlow {
+            0%, 100% { background: #0f0; }
+            50% { background: #0ff; }
+        }
+
+        /* Oda durumu */
+        .room-status {
+            background: linear-gradient(135deg, #0f0 0%, #0a0 100%);
             color: #000;
-            padding: 10px;
-            margin: 10px 0;
+            padding: 12px;
+            margin: 15px 0;
             font-weight: bold;
             text-align: center;
+            font-size: 16px;
+            border-radius: 10px;
+            animation: statusPulse 1.5s ease-in-out infinite;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
-        
+
+        @keyframes statusPulse {
+            0%, 100% { 
+                opacity: 1;
+                box-shadow: 0 0 10px rgba(0,255,0,0.5);
+            }
+            50% { 
+                opacity: 0.9;
+                box-shadow: 0 0 20px rgba(0,255,0,0.8);
+            }
+        }
+
+        /* Oda paneli */
         .room-panel {
             border: 1px solid #0f0;
-            padding: 10px;
-            margin: 10px 0;
+            padding: 20px;
+            margin: 15px 0;
+            background: rgba(10, 10, 10, 0.9);
+            border-radius: 12px;
+            transition: all 0.3s;
+            animation: fadeInUp 0.6s ease-out;
         }
-        
-        .room-list {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 10px;
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
+
+        .room-panel:hover {
+            border-color: #0ff;
+            box-shadow: 0 0 20px rgba(0,255,255,0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Oda listesi */
         .room-item {
-            padding: 5px;
-            margin: 2px;
-            border-bottom: 1px solid #0f0;
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #0f0;
             cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 8px;
+            animation: bounceIn 0.5s ease-out;
         }
-        
+
+        @keyframes bounceIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
         .room-item:hover {
             background: #0f0;
             color: #000;
+            transform: translateX(10px) scale(1.02);
+            box-shadow: 0 0 15px #0f0;
         }
-        
-        ::-webkit-scrollbar {
-            width: 8px;
+
+        /* Mesaj satırları */
+        .message-line {
+            padding: 8px;
+            border-left: 3px solid #0f0;
+            margin: 8px 0;
+            transition: all 0.3s;
+            animation: messageSlide 0.3s ease-out;
+            border-radius: 0 8px 8px 0;
         }
-        
-        ::-webkit-scrollbar-track {
-            background: #000;
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #0f0;
+
+        .message-line:hover {
+            background: rgba(0, 255, 0, 0.1);
+            transform: translateX(5px);
+            border-left-color: #0ff;
         }
-        
-        input {
-            width: 200px;
+
+        .message-time {
+            color: #888;
+            font-size: 11px;
         }
-        
-        button {
-            margin: 2px;
+
+        .message-user {
+            color: #0ff;
+            font-weight: bold;
+            text-shadow: 0 0 5px #0ff;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .terminal {
+                padding: 15px;
+            }
+            .terminal-input {
+                width: 100%;
+            }
+            pre {
+                font-size: 5px;
+            }
+            .input-line {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        .terminal-btn:active {
+            transform: scale(0.95);
         }
     </style>
 </head>
 <body>
-    <div class="terminal" id="app">
-        <pre id="ascii-header">
-╔════════════════════════════════════════════════════════════════════════════════════════════╗
-║██╗  ██╗███████╗██╗  ██╗ █████╗ ██╗  ██╗ █████╗  ██████╗██╗  ██╗    ██╗ █████╗ ██╗███╗   ███║
-║██║  ██║██╔════╝╚██╗██╔╝██╔══██╗██║  ██║██╔══██╗██╔════╝██║ ██╔╝    ██║██╔══██╗██║████╗ ████║
-║███████║█████╗   ╚███╔╝ ███████║███████║███████║██║     █████╔╝     ██║███████║██║██╔████╔██║
-║██╔══██║██╔══╝   ██╔██╗ ██╔══██║██╔══██║██╔══██║██║     ██╔═██╗     ██║██╔══██║██║██║╚██╔╝██║
-║██║  ██║███████╗██╔╝ ██╗██║  ██║██║  ██║██║  ██║╚██████╗██║  ██╗    ██║██║  ██║██║██║ ╚═╝ ██║
-║                                                                                            ║
-║                          ══ ROOM BASED TERMINAL CHAT ══                                    ║
-╚════════════════════════════════════════════════════════════════════════════════════════════╝
-        </pre>
-        
-        <!-- LOGIN VIEW -->
-        <div id="login-view">
-            <div class="input-line">USERNAME: <input type="text" id="username" class="terminal-input" autocomplete="off"></div>
-            <div class="input-line">PASSWORD: <input type="password" id="password" class="terminal-input"></div>
-            <button onclick="login()" class="terminal-btn">[ LOGIN ]</button>
-            <button onclick="register()" class="terminal-btn">[ REGISTER ]</button>
+<div class="terminal">
+    <pre>
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣀⣠⣤⣴⡶⠶⠾⠿⠛⠛⠛⠛⠿⠿⠶⢶⣦⣤⣄⣀⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣀⣤⡶⠟⠛⠉⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠉⠛⠻⢶⣤⣀⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣀⣴⠾⠋⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠙⠷⣦⣄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣠⡼⠋⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠙⢷⣄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⣠⡾⠋⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠙⢷⣄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⣀⡾⠏⠄⠄⠄⠄⢀⣀⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣀⡀⠄⠄⠄⠄⠹⢷⣀⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⢀⣼⠏⠄⠄⠄⡀⣰⣾⡟⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⠻⣷⣦⢀⠄⠄⠄⠹⣷⡀⠄⠄⠄⠄
+⠄⠄⠄⠄⡾⠃⠄⢀⣴⠋⣴⣿⢋⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⡙⣿⣦⠙⣦⡀⠄⠘⢷⡄⠄⠄⠄
+⠄⠄⠄⣼⠁⠄⢀⣿⡏⢰⠟⢡⡎⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢀⡠⣤⣀⡀⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢱⣌⠻⡇⢹⣿⡀⠄⠈⢧⠄⠄⠄
+⠄⠄⣼⠏⣠⡎⢸⣿⢣⣥⡾⠏⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠐⠿⠄⠈⣿⣿⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠙⢷⣬⣜⣿⡇⢱⣄⠸⣧⠄⠄
+⠄⣸⡟⠄⣿⡇⢸⣷⡿⢋⡔⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⡼⠛⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢢⡙⢿⣾⡇⢸⣿⡀⢻⣇⠄
+⢀⣿⠁⠄⣿⣧⠸⢋⣴⡿⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⢿⣦⡙⠇⣸⣿⡇⠈⣿⡀
+⢸⡏⠄⡄⣿⡿⣰⣿⡿⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢿⡿⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠈⢿⣿⣆⢻⣿⢣⠄⢹⡇
+⣾⡇⢠⣧⠹⣧⡿⠋⣰⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠠⠄⠠⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣦⠙⢿⣼⠏⢸⡄⢸⣿
+⣿⠄⠘⣿⡀⢻⢁⣼⡟⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢀⣴⠄⠛⢿⡿⠛⠄⣲⡀⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⢻⣧⡈⡿⢀⣾⠃⠄⣿
+⣿⠄⠄⢿⣷⠄⣾⣿⠃⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣀⣀⣤⣤⣴⣶⣿⡏⠄⠠⢻⡟⠄⠄⢹⣿⣶⣦⣤⣤⣀⣀⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠘⣿⣷⠄⣾⡿⠄⠄⣿
+⢿⡇⢰⠘⣿⡇⣿⡏⢸⡀⠄⠄⠄⠄⠄⠄⠄⠄⠄⣿⣿⣿⣿⣿⣿⣿⡇⠄⠄⣼⣧⠄⠄⢈⣿⣿⣿⣿⣿⣿⣿⡇⠄⠄⠄⠄⠄⠄⠄⠄⢀⡇⢹⣿⢸⣿⠇⡆⢸⡿
+⢸⣇⠈⣷⠈⢻⣿⠄⣼⣇⠄⠄⠄⠄⠄⠄⠄⠄⢀⣿⣿⣿⣿⣿⣿⣿⣧⠄⠄⣿⣿⠄⠄⣼⣿⣿⣿⣿⣿⣿⣿⡇⠄⠄⠄⠄⠄⠄⠄⠄⣸⣧⠄⣿⡟⠁⣼⠁⣸⡇
+⠈⣿⡀⠹⣷⣄⠙⠄⣿⣿⢀⠄⠄⠄⠄⠄⠄⠄⢸⣿⣿⣿⣿⣿⣿⣿⣿⣆⠄⣿⣿⠄⣰⣿⣿⣿⣿⣿⣿⣿⣿⡇⠄⠄⠄⠄⠄⠄⠄⡀⣿⣿⠄⠋⣠⣾⡏⢀⣿⠁
+⠄⢹⣧⠄⠻⣿⣷⡄⣿⣿⠄⣇⠄⠄⠄⠄⠄⠄⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⣿⣿⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠄⠄⠄⠄⠄⠄⣠⠄⣿⣿⢠⣾⣿⠟⠄⣼⡏⠄
+⠄⠄⢻⣆⠡⣈⠻⠿⣞⣿⡄⢸⣆⠄⠄⠄⠄⠄⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠄⠄⠄⠄⠄⣰⣿⢠⣿⣳⠿⠟⣁⠌⢰⡿⠄⠄
+⠄⠄⠄⢻⡀⠹⣷⣦⣀⠙⠳⣸⣿⣇⢀⡀⠄⢰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠄⢀⡀⣸⣿⡏⠞⠋⣀⣴⣾⠏⢀⡞⠄⠄⠄
+⠄⠄⠄⠄⢷⡄⠈⠻⢿⣿⣷⣆⡻⣿⡄⢻⣦⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⣴⡟⢠⣿⢟⣠⣾⣿⡿⠟⠁⢠⡾⠃⠄⠄⠄
+⠄⠄⠄⠄⠈⢿⣆⠄⠄⣉⠛⠿⢿⣮⣿⣄⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⣠⣿⣵⡿⠿⠛⣉⠄⠄⣰⡿⠁⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠙⢷⣄⠈⠓⢦⣤⣤⣤⣭⣥⣭⣿⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣿⣭⣤⣭⣤⣤⣤⡴⠚⠁⣠⡾⠋⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠙⢷⣄⡀⠈⢉⠛⠛⠛⠛⠛⠉⣁⣤⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣤⣈⠉⠙⠛⠛⠛⠛⡉⠁⠄⣠⡾⠋⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠙⢳⣄⡀⠙⠳⢶⣶⣾⣿⣿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⣿⣷⣶⡶⠞⠋⢀⣠⡾⠋⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠙⠻⢶⣄⡀⠄⠄⠄⠄⢰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠄⠄⠄⠄⢀⣠⣶⠟⠋⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠉⠉⠓⠶⣦⣤⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⣤⣴⡶⠚⠉⠉⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠉⠙⠛⠻⠿⠿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠿⠟⠛⠋⠉⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄
+    </pre>
+
+    <!-- LOGIN VIEW -->
+    <div id="login-view">
+        <div class="input-line">
+            <span style="color:#0f0">┌─[</span><span style="color:#ff0; text-shadow: 0 0 10px #ff0;">ANONYMOUS</span><span style="color:#0f0">]</span><br>
+            <span style="color:#0f0">└──╼ $</span> USERNAME: <input type="text" id="username" class="terminal-input" autocomplete="off" placeholder="enter_username">
         </div>
-        
-        <!-- CHAT VIEW -->
-        <div id="chat-view" style="display:none">
-            <div class="room-status" id="room-status">⚡ NO ROOM JOINED ⚡</div>
-            
-            <div class="room-panel">
-                <strong>📁 ROOM CONTROLS</strong><br>
-                <input type="text" id="room_name" placeholder="Room name" class="terminal-input">
-                <button onclick="createRoom()" class="terminal-btn">[ CREATE ROOM ]</button>
-                <br>
-                <input type="text" id="room_code" placeholder="Room code (ex: #AB123)" class="terminal-input">
-                <button onclick="joinRoom()" class="terminal-btn">[ JOIN ROOM ]</button>
-                <button onclick="listRooms()" class="terminal-btn">[ LIST ROOMS ]</button>
-                <div id="rooms-list" style="display:none" class="room-list"></div>
-            </div>
-            
-            <div id="messages" class="messages-box"></div>
-            <div class="input-line">MESSAGE: <input type="text" id="message" class="terminal-input" autocomplete="off"></div>
-            <button onclick="sendMessage()" class="terminal-btn">[ SEND ]</button>
-            <button onclick="logout()" class="terminal-btn">[ LOGOUT ]</button>
+        <div class="input-line">
+            <span style="color:#0f0">└──╼ $</span> PASSWORD: <input type="password" id="password" class="terminal-input" placeholder="••••••••">
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="login()" class="terminal-btn">[ LOGIN 🚀 ]</button>
+            <button onclick="register()" class="terminal-btn">[ REGISTER ✨ ]</button>
         </div>
     </div>
-    
-    <script>
-        let currentUser = null;
-        let token = null;
-        let currentRoom = null;
-        let messageInterval = null;
-        
-        async function register() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            if(!username || !password) {
-                alert('❌ Username and password required!');
-                return;
-            }
-            
-            const res = await fetch('/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username, password})
-            });
-            
-            if (res.ok) {
-                alert('✅ Registration successful! Now login.');
-            } else {
-                alert('❌ Username already taken!');
-            }
+
+    <!-- CHAT VIEW -->
+    <div id="chat-view" style="display:none">
+        <div class="room-status" id="room-status">⚡ INITIALIZING SYSTEM... ⚡</div>
+
+        <div class="room-panel">
+            <strong>📁 ROOM CONTROLS [ULTIMATE EDITION]</strong><br><br>
+            <input type="text" id="room_name" placeholder="Enter room name" class="terminal-input">
+            <button onclick="createRoom()" class="terminal-btn">[ CREATE ROOM 🏗️ ]</button>
+            <br><br>
+            <input type="text" id="room_code" placeholder="Enter room code (ex: #AB123)" class="terminal-input">
+            <button onclick="joinRoom()" class="terminal-btn">[ JOIN ROOM 🚪 ]</button>
+            <button onclick="listRooms()" class="terminal-btn">[ LIST ROOMS 📋 ]</button>
+            <div id="rooms-list" style="display:none" class="room-list"></div>
+        </div>
+
+        <div id="messages" class="messages-box">
+            <div class="message-line">> 🚀 WELCOME TO THE ULTIMATE ASCII CHAT SYSTEM 🚀</div>
+            <div class="message-line">> 💫 CREATE OR JOIN A ROOM TO START YOUR JOURNEY 💫</div>
+            <div class="message-line">> 🔒 ALL MESSAGES ARE ENCRYPTED AND SECURE 🔒</div>
+        </div>
+
+        <div class="input-line">
+            <span style="color:#0f0">└──╼ $</span> MESSAGE: <input type="text" id="message" class="terminal-input" style="flex:1" autocomplete="off" placeholder="Type your message here...">
+            <button onclick="sendMessage()" class="terminal-btn">[ SEND 💬 ]</button>
+            <button onclick="logout()" class="terminal-btn">[ LOGOUT 👋 ]</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let token = null;
+    let currentRoom = null;
+    let messageInterval = null;
+
+    async function register() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if(!username || !password) {
+            alert('❌ Username and password required!');
+            return;
         }
-        
-        async function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            if(!username || !password) {
-                alert('❌ Username and password required!');
-                return;
-            }
-            
-            const res = await fetch('/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username, password})
-            });
-            
-            if (res.ok) {
-                const data = await res.json();
-                currentUser = data.username;
-                token = data.token;
-                
-                document.getElementById('login-view').style.display = 'none';
-                document.getElementById('chat-view').style.display = 'block';
-                
-                // Check current room
-                await checkCurrentRoom();
-                
-                // Start message polling
-                if(messageInterval) clearInterval(messageInterval);
-                messageInterval = setInterval(loadMessages, 3000);
-            } else {
-                alert('❌ Login failed! Check your credentials.');
-            }
-        }
-        
-        async function checkCurrentRoom() {
-            const res = await fetch('/current_room', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: currentUser, token: token})
-            });
-            
-            const data = await res.json();
-            if(data.room_code) {
-                currentRoom = data.room_code;
-                document.getElementById('room-status').innerHTML = `🔥 CURRENT ROOM: ${currentRoom} 🔥`;
-                loadMessages();
-            } else {
-                document.getElementById('room-status').innerHTML = '⚡ NO ROOM JOINED - Create or join a room! ⚡';
-            }
-        }
-        
-        async function createRoom() {
-            const room_name = document.getElementById('room_name').value;
-            
-            if(!room_name) {
-                alert('❌ Enter a room name!');
-                return;
-            }
-            
-            const res = await fetch('/create_room', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: currentUser, room_name: room_name, token: token})
-            });
-            
-            const data = await res.json();
-            if(data.success) {
-                alert(`✅ Room created! Room code: ${data.room_code}`);
-                await joinRoomCode(data.room_code);
-                document.getElementById('room_name').value = '';
-            } else {
-                alert('❌ Failed to create room!');
-            }
-        }
-        
-        async function joinRoom() {
-            const room_code = document.getElementById('room_code').value;
-            
-            if(!room_code) {
-                alert('❌ Enter a room code!');
-                return;
-            }
-            
-            await joinRoomCode(room_code);
-            document.getElementById('room_code').value = '';
-        }
-        
-        async function joinRoomCode(room_code) {
-            const res = await fetch('/join_room', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: currentUser, room_code: room_code, token: token})
-            });
-            
-            if(res.ok) {
-                currentRoom = room_code;
-                document.getElementById('room-status').innerHTML = `🔥 CURRENT ROOM: ${currentRoom} 🔥`;
-                document.getElementById('rooms-list').style.display = 'none';
-                loadMessages();
-                alert(`✅ Joined room: ${room_code}`);
-            } else {
-                alert('❌ Room not found!');
-            }
-        }
-        
-        async function listRooms() {
-            const res = await fetch('/list_rooms', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({token: token})
-            });
-            
-            const rooms = await res.json();
-            const listDiv = document.getElementById('rooms-list');
-            
-            if(rooms.length === 0) {
-                listDiv.innerHTML = '<div class="room-item">No rooms available. Create one!</div>';
-            } else {
-                listDiv.innerHTML = '<strong>📋 AVAILABLE ROOMS:</strong><br>';
-                rooms.forEach(room => {
-                    listDiv.innerHTML += `
-                        <div class="room-item" onclick="joinRoomCode('${room.room_code}')">
-                            🔓 ${room.room_code} - ${room.room_name} (by: ${room.created_by})
-                        </div>
-                    `;
-                });
-            }
-            
-            listDiv.style.display = listDiv.style.display === 'none' ? 'block' : 'none';
-        }
-        
-        async function sendMessage() {
-            const message = document.getElementById('message').value;
-            
-            if(!message) return;
-            if(!currentRoom) {
-                alert('❌ Join a room first!');
-                return;
-            }
-            
-            const res = await fetch('/send', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    from: currentUser,
-                    message: message,
-                    token: token
-                })
-            });
-            
-            if(res.ok) {
-                document.getElementById('message').value = '';
-                loadMessages();
-            } else {
-                alert('❌ Failed to send message!');
-            }
-        }
-        
-        async function loadMessages() {
-            if(!currentRoom) return;
-            
-            const res = await fetch('/messages', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: currentUser, token: token})
-            });
-            
-            const messages = await res.json();
-            const box = document.getElementById('messages');
-            
-            if(messages.length === 0) {
-                box.innerHTML = '> No messages yet. Start the conversation!';
-            } else {
-                box.innerHTML = messages.map(m => 
-                    `> [${m.timestamp}] @${m.from_user}: ${m.message}`
-                ).reverse().join('<br>');
-            }
-            box.scrollTop = box.scrollHeight;
-        }
-        
-        function logout() {
-            if(messageInterval) clearInterval(messageInterval);
-            currentUser = null;
-            token = null;
-            currentRoom = null;
-            document.getElementById('login-view').style.display = 'block';
-            document.getElementById('chat-view').style.display = 'none';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-        }
-        
-        // Enter tuşu ile mesaj gönderme
-        document.addEventListener('keypress', function(e) {
-            if(e.key === 'Enter' && document.getElementById('chat-view').style.display === 'block') {
-                if(document.activeElement.id === 'message') {
-                    sendMessage();
-                }
-            }
+
+        const res = await fetch('/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
         });
-    </script>
+
+        const data = await res.json();
+        if (res.ok) {
+            alert('✅ Registration successful! Now login.');
+        } else {
+            alert('❌ ' + (data.error || 'Registration failed!'));
+        }
+    }
+
+    async function login() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if(!username || !password) {
+            alert('❌ Username and password required!');
+            return;
+        }
+
+        const res = await fetch('/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            currentUser = data.username;
+            token = data.token;
+
+            document.getElementById('login-view').style.display = 'none';
+            document.getElementById('chat-view').style.display = 'block';
+
+            await checkCurrentRoom();
+
+            if(messageInterval) clearInterval(messageInterval);
+            messageInterval = setInterval(loadMessages, 3000);
+        } else {
+            alert('❌ ' + (data.error || 'Login failed!'));
+        }
+    }
+
+    async function checkCurrentRoom() {
+        const res = await fetch('/current_room', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: currentUser, token: token})
+        });
+
+        const data = await res.json();
+        if(data.room_code) {
+            currentRoom = data.room_code;
+            document.getElementById('room-status').innerHTML = `🔥 CURRENT ROOM: ${currentRoom} | 🔐 SECURE CONNECTION ACTIVE 🔥`;
+            await loadMessages();
+        } else {
+            document.getElementById('room-status').innerHTML = '⚡ NO ROOM JOINED - CREATE OR JOIN A ROOM TO BEGIN! ⚡';
+        }
+    }
+
+    async function createRoom() {
+        const room_name = document.getElementById('room_name').value.trim();
+
+        if(!room_name) {
+            alert('❌ Enter a room name!');
+            return;
+        }
+
+        const res = await fetch('/create_room', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: currentUser, room_name: room_name, token: token})
+        });
+
+        const data = await res.json();
+        if(data.success) {
+            alert(`✅ Room created successfully! Room code: ${data.room_code}`);
+            await joinRoomCode(data.room_code);
+            document.getElementById('room_name').value = '';
+        } else {
+            alert('❌ ' + (data.error || 'Failed to create room!'));
+        }
+    }
+
+    async function joinRoom() {
+        const room_code = document.getElementById('room_code').value.trim().toUpperCase();
+
+        if(!room_code) {
+            alert('❌ Enter a room code!');
+            return;
+        }
+
+        await joinRoomCode(room_code);
+        document.getElementById('room_code').value = '';
+    }
+
+    async function joinRoomCode(room_code) {
+        const res = await fetch('/join_room', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: currentUser, room_code: room_code, token: token})
+        });
+
+        const data = await res.json();
+        if(res.ok) {
+            currentRoom = room_code;
+            document.getElementById('room-status').innerHTML = `🔥 CURRENT ROOM: ${currentRoom} | 🔐 SECURE CONNECTION ACTIVE 🔥`;
+            document.getElementById('rooms-list').style.display = 'none';
+            await loadMessages();
+            alert(`✅ Successfully joined room: ${room_code}`);
+        } else {
+            alert('❌ ' + (data.error || 'Room not found!'));
+        }
+    }
+
+    async function listRooms() {
+        const res = await fetch('/list_rooms', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({token: token})
+        });
+
+        const rooms = await res.json();
+        const listDiv = document.getElementById('rooms-list');
+
+        if(rooms.length === 0) {
+            listDiv.innerHTML = '<div class="room-item">📭 No rooms available. Create one!</div>';
+        } else {
+            listDiv.innerHTML = '<strong>📋 AVAILABLE ROOMS:</strong><br>';
+            rooms.forEach(room => {
+                listDiv.innerHTML += `
+                    <div class="room-item" onclick="joinRoomCode('${room.room_code}')">
+                        🔓 ${room.room_code} - ${room.room_name} <span style="color:#888">(created by: ${room.created_by})</span>
+                    </div>
+                `;
+            });
+        }
+
+        listDiv.style.display = listDiv.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function sendMessage() {
+        const message = document.getElementById('message').value.trim();
+
+        if(!message) return;
+        if(!currentRoom) {
+            alert('❌ Join a room first!');
+            return;
+        }
+
+        const res = await fetch('/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                from: currentUser,
+                message: message,
+                token: token
+            })
+        });
+
+        if(res.ok) {
+            document.getElementById('message').value = '';
+            await loadMessages();
+        } else {
+            const data = await res.json();
+            alert('❌ ' + (data.error || 'Failed to send message!'));
+        }
+    }
+
+    async function loadMessages() {
+        if(!currentRoom || !currentUser) return;
+
+        const res = await fetch('/messages', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: currentUser, token: token})
+        });
+
+        const messages = await res.json();
+        const box = document.getElementById('messages');
+
+        if(messages.length === 0) {
+            box.innerHTML = '<div class="message-line">> 💬 No messages yet. Start the conversation! 💬</div>';
+        } else {
+            box.innerHTML = messages.map(m => 
+                `<div class="message-line">
+                    <span class="message-time">[${new Date(m.timestamp).toLocaleTimeString()}]</span>
+                    <span class="message-user">@${escapeHtml(m.from_user)}</span>: ${escapeHtml(m.message)}
+                </div>`
+            ).join('');
+        }
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function logout() {
+        if(messageInterval) clearInterval(messageInterval);
+        currentUser = null;
+        token = null;
+        currentRoom = null;
+        document.getElementById('login-view').style.display = 'block';
+        document.getElementById('chat-view').style.display = 'none';
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        document.getElementById('message').value = '';
+    }
+
+    // Enter tuşu ile mesaj gönderme
+    document.addEventListener('keypress', function(e) {
+        if(e.key === 'Enter' && document.getElementById('chat-view').style.display === 'block') {
+            if(document.activeElement.id === 'message') {
+                sendMessage();
+            }
+        }
+    });
+</script>
 </body>
 </html>
