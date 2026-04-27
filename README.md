@@ -1,19 +1,4 @@
-# z0nk
-
-
-
-
-
-
-
-
-
-npm install express bcryptjs jsonwebtoken cors  
-
-
-
-
-
+BU DEPO HEXAGES STUDİOS TARAFINDAN EĞİTİM İÇİN HAZIRLANMIŞTIR YAPI BÜTÜNLÜĞÜ SAĞLAMA VE MESAJ ŞİFRELMEDE KULLANILIR 
 
 
 
