@@ -53,7 +53,7 @@ setInterval(() => {
         console.log(`🗑️ ${beforeCount - messages.length} eski mesaj silindi (20 dakika)`);
         saveData();
     }
-}, 60 * 1000); // Her dakika kontrol et
+}, 60 * 1000);
 
 // ============ AFK kontrolü (10 dakika) ============
 setInterval(() => {
@@ -304,7 +304,7 @@ app.post('/messages', (req, res) => {
         
         userActivity[username] = Date.now();
         
-        // SADECE kullanıcının aktif odasındaki mesajları getir
+        // SADECE kullanıcının aktif odasındaki mesajları getir (en eski mesajlar önce)
         const roomMessages = messages
             .filter(m => m.room_code === ur.current_room)
             .slice(-100);
