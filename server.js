@@ -15,7 +15,7 @@ let users = [];
 let rooms = [];
 let messages = [];
 let userRooms = [];
-let userActivity = {}; // AFK takibi için
+let userActivity = {};
 
 // Veri dosyalarını yükle
 const loadData = () => {
@@ -38,14 +38,35 @@ const saveData = () => {
 
 loadData();
 
-// AFK kontrolü (her dakika çalışır)
+// ============ OTOMATİK MESAJ SİLME (20 dakika) ============
+setInterval(() => {
+    const now = new Date();
+    const twentyMinsAgo = new Date(now.getTime() - 20 * 60 * 1000);
+    const beforeCount = messages.length;
+    
+    messages = messages.filter(msg => {
+        const msgDate = new Date(msg.timestamp);
+        return msgDate > twentyMinsAgo;
+    });
+    
+    if (messages.length !== beforeCount) {
+        console.log(`🗑️ ${beforeCount - messages.length} eski mesaj silindi (20 dakika)`);
+        saveData();
+    }
+}, 60 * 1000); // Her dakika kontrol et
+
+// ============ AFK kontrolü (10 dakika) ============
 setInterval(() => {
     const now = Date.now();
     for (const [username, lastActive] of Object.entries(userActivity)) {
-        if (now - lastActive > 10 * 60 * 1000) { // 10 dakika
-            // Kullanıcıyı odadan at
+        if (now - lastActive > 10 * 60 * 1000) {
             const idx = userRooms.findIndex(u => u.username === username);
             if (idx !== -1) {
+                const room = rooms.find(r => r.room_code === userRooms[idx].current_room);
+                if (room && room.users) {
+                    const userIdx = room.users.indexOf(username);
+                    if (userIdx !== -1) room.users.splice(userIdx, 1);
+                }
                 userRooms.splice(idx, 1);
                 console.log(`🗑️ ${username} AFK olduğu için odadan atıldı`);
             }
@@ -53,9 +74,9 @@ setInterval(() => {
             saveData();
         }
     }
-}, 60 * 1000); // Her dakika kontrol et
+}, 60 * 1000);
 
-// Oda kodu üretici
+// ============ Oda kodu üretici ============
 function generateRoomCode() {
     const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
     const numbers = '0123456789';
@@ -69,20 +90,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Aktivite güncelle
-app.post('/update_activity', (req, res) => {
-    const { username, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        userActivity[username] = Date.now();
-        saveData();
-        res.json({ success: true });
-    } catch(e) {
-        res.status(401).json({ error: 'Yetkisiz!' });
-    }
-});
+// ============ KULLANICILAR ============
 
-// Kayıt
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     if(!username || !password) return res.status(400).json({ error: 'Kullanıcı adı ve şifre gerekli!' });
@@ -95,7 +104,6 @@ app.post('/register', async (req, res) => {
     res.json({ success: true });
 });
 
-// Giriş
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username);
@@ -110,7 +118,18 @@ app.post('/login', async (req, res) => {
     res.json({ token, username });
 });
 
-// Oda oluştur (şifreli olabilir)
+app.post('/update_activity', (req, res) => {
+    const { username, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        userActivity[username] = Date.now();
+        saveData();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+// ============ ODALAR ============
+
 app.post('/create_room', async (req, res) => {
     const { username, room_name, room_password, token } = req.body;
     try {
@@ -126,14 +145,13 @@ app.post('/create_room', async (req, res) => {
             room_password: hashedPassword,
             created_by: username, 
             created_at: new Date().toISOString(),
-            users: [] // Odadaki kullanıcılar
+            users: [username]
         });
         saveData();
         res.json({ success: true, room_code });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Odaya katıl (şifre kontrolü)
 app.post('/join_room', async (req, res) => {
     const { username, room_code, room_password, token } = req.body;
     try {
@@ -141,9 +159,8 @@ app.post('/join_room', async (req, res) => {
         const room = rooms.find(r => r.room_code === room_code);
         if(!room) return res.status(404).json({ error: 'Oda bulunamadı!' });
         
-        // Şifre kontrolü
         if (room.room_password) {
-            if (!room_password) return res.status(401).json({ error: 'Oda şifreli! Şifre girin!' });
+            if (!room_password) return res.status(401).json({ error: 'Bu oda şifreli! Şifre girin!' });
             const valid = await bcrypt.compare(room_password, room.room_password);
             if (!valid) return res.status(401).json({ error: 'Oda şifresi hatalı!' });
         }
@@ -152,7 +169,6 @@ app.post('/join_room', async (req, res) => {
         if(idx !== -1) userRooms[idx].current_room = room_code;
         else userRooms.push({ username, current_room: room_code });
         
-        // Odaya kullanıcı ekle
         if (!room.users.includes(username)) room.users.push(username);
         
         userActivity[username] = Date.now();
@@ -161,24 +177,38 @@ app.post('/join_room', async (req, res) => {
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Odadaki aktif kullanıcıları getir
-app.post('/room_users', (req, res) => {
-    const { room_code, token } = req.body;
+// ODAYI SİL (tüm mesajlarıyla birlikte)
+app.post('/delete_room', (req, res) => {
+    const { username, room_code, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
         const room = rooms.find(r => r.room_code === room_code);
-        if(!room) return res.json([]);
+        if(!room) return res.status(404).json({ error: 'Oda bulunamadı!' });
         
-        // Aktif kullanıcıları filtrele (son 10 dakika içinde aktif)
-        const activeUsers = room.users.filter(u => {
-            const lastActive = userActivity[u];
-            return lastActive && (Date.now() - lastActive < 10 * 60 * 1000);
-        });
-        res.json(activeUsers);
+        if (room.created_by !== username) {
+            return res.status(403).json({ error: 'Bu odayı sadece oluşturan kişi silebilir!' });
+        }
+        
+        // Odadaki TÜM mesajları sil
+        const deletedMsgCount = messages.filter(m => m.room_code === room_code).length;
+        messages = messages.filter(m => m.room_code !== room_code);
+        
+        // Odadaki tüm kullanıcıları userRooms'dan temizle
+        for (const user of room.users) {
+            const urIdx = userRooms.findIndex(u => u.username === user && u.current_room === room_code);
+            if (urIdx !== -1) userRooms.splice(urIdx, 1);
+        }
+        
+        // Odayı sil
+        const roomIdx = rooms.findIndex(r => r.room_code === room_code);
+        rooms.splice(roomIdx, 1);
+        
+        console.log(`🗑️ Oda ${room_code} silindi, ${deletedMsgCount} mesaj temizlendi`);
+        saveData();
+        res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Aktif oda
 app.post('/current_room', (req, res) => {
     const { username, token } = req.body;
     try {
@@ -188,7 +218,27 @@ app.post('/current_room', (req, res) => {
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Odaları listele (şifreli odaların şifresi gizlenir)
+app.post('/leave_room', (req, res) => {
+    const { username, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        
+        const urIdx = userRooms.findIndex(u => u.username === username);
+        if (urIdx !== -1) {
+            const roomCode = userRooms[urIdx].current_room;
+            const room = rooms.find(r => r.room_code === roomCode);
+            if (room) {
+                const userIdx = room.users.indexOf(username);
+                if (userIdx !== -1) room.users.splice(userIdx, 1);
+            }
+            userRooms.splice(urIdx, 1);
+        }
+        
+        saveData();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
 app.post('/list_rooms', (req, res) => {
     const { token } = req.body;
     try {
@@ -198,16 +248,28 @@ app.post('/list_rooms', (req, res) => {
             room_name: r.room_name,
             created_by: r.created_by,
             is_locked: !!r.room_password,
-            users_count: r.users.filter(u => {
-                const lastActive = userActivity[u];
-                return lastActive && (Date.now() - lastActive < 10 * 60 * 1000);
-            }).length
+            users_count: r.users ? r.users.filter(u => userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000)).length : 0,
+            total_users: r.users ? r.users.length : 0,
+            message_count: messages.filter(m => m.room_code === r.room_code).length
         }));
         res.json(publicRooms);
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Mesaj gönder
+app.post('/room_users', (req, res) => {
+    const { room_code, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const room = rooms.find(r => r.room_code === room_code);
+        if(!room) return res.json([]);
+        
+        const activeUsers = room.users.filter(u => userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000));
+        res.json(activeUsers);
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+// ============ MESAJLAR ============
+
 app.post('/send', (req, res) => {
     const { from, message, token } = req.body;
     try {
@@ -215,15 +277,24 @@ app.post('/send', (req, res) => {
         const ur = userRooms.find(u => u.username === from);
         if(!ur || !ur.current_room) return res.status(400).json({ error: 'Önce bir odaya katılın!' });
         
+        const room = rooms.find(r => r.room_code === ur.current_room);
+        if (!room) {
+            return res.status(400).json({ error: 'Oda silinmiş!' });
+        }
+        
         userActivity[from] = Date.now();
-        messages.push({ room_code: ur.current_room, from_user: from, message, timestamp: new Date().toISOString() });
-        if(messages.length > 500) messages = messages.slice(-500);
+        messages.push({ 
+            room_code: ur.current_room, 
+            from_user: from, 
+            message, 
+            timestamp: new Date().toISOString() 
+        });
+        
         saveData();
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Mesajları al
 app.post('/messages', (req, res) => {
     const { username, token } = req.body;
     try {
@@ -232,19 +303,22 @@ app.post('/messages', (req, res) => {
         if(!ur || !ur.current_room) return res.json([]);
         
         userActivity[username] = Date.now();
-        const roomMessages = messages.filter(m => m.room_code === ur.current_room).slice(-100);
+        
+        // SADECE kullanıcının aktif odasındaki mesajları getir
+        const roomMessages = messages
+            .filter(m => m.room_code === ur.current_room)
+            .slice(-100);
+        
         res.json(roomMessages);
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Çıkış
 app.post('/logout', (req, res) => {
     const { username, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
         const idx = userRooms.findIndex(u => u.username === username);
         if (idx !== -1) {
-            // Odadan kullanıcıyı kaldır
             const room = rooms.find(r => r.room_code === userRooms[idx].current_room);
             if (room) {
                 const userIdx = room.users.indexOf(username);
@@ -260,6 +334,8 @@ app.post('/logout', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🔥 HACKER CHAT SİSTEMİ AKTİF!`);
+    console.log(`\n🔥 HEXAHACK IAIM CHAT SİSTEMİ AKTİF!`);
     console.log(`📍 http://localhost:${PORT}`);
+    console.log(`⏰ Mesajlar 20 dakika sonra otomatik silinecek`);
+    console.log(`🗑️ AFK kullanıcılar 10 dakika sonra atılacak`);
 });
