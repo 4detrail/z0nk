@@ -1,223 +1,158 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
 
-const db = new sqlite3.Database('chat.db');
+// JSON dosya tabanlı veritabanı
+let users = [];
+let rooms = [];
+let messages = [];
+let userRooms = [];
 
-// Kullanıcılar tablosu
-db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
-    username TEXT UNIQUE,
-    password TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
+// Veri dosyalarını yükle
+const loadData = () => {
+    try {
+        if(fs.existsSync('users.json')) users = JSON.parse(fs.readFileSync('users.json', 'utf8'));
+        if(fs.existsSync('rooms.json')) rooms = JSON.parse(fs.readFileSync('rooms.json', 'utf8'));
+        if(fs.existsSync('messages.json')) messages = JSON.parse(fs.readFileSync('messages.json', 'utf8'));
+        if(fs.existsSync('userRooms.json')) userRooms = JSON.parse(fs.readFileSync('userRooms.json', 'utf8'));
+    } catch(e) {}
+};
 
-// Odalar tablosu (oda numaraları otomatik)
-db.run(`CREATE TABLE IF NOT EXISTS rooms (
-    id INTEGER PRIMARY KEY,
-    room_code TEXT UNIQUE,
-    room_name TEXT,
-    created_by TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
+const saveData = () => {
+    fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
+    fs.writeFileSync('rooms.json', JSON.stringify(rooms, null, 2));
+    fs.writeFileSync('messages.json', JSON.stringify(messages, null, 2));
+    fs.writeFileSync('userRooms.json', JSON.stringify(userRooms, null, 2));
+};
 
-// Mesajlar tablosu (oda bazlı)
-db.run(`CREATE TABLE IF NOT EXISTS room_messages (
-    id INTEGER PRIMARY KEY,
-    room_code TEXT,
-    from_user TEXT,
-    message TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
+loadData();
 
-// Kullanıcının aktif odası
-db.run(`CREATE TABLE IF NOT EXISTS user_room (
-    username TEXT PRIMARY KEY,
-    current_room TEXT
-)`);
-
-// Oda kodu oluşturucu
+// Oda kodu üretici
 function generateRoomCode() {
     const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
     const numbers = '0123456789';
     let code = '#';
-    for(let i = 0; i < 2; i++) {
-        code += letters[Math.floor(Math.random() * letters.length)];
-    }
-    for(let i = 0; i < 3; i++) {
-        code += numbers[Math.floor(Math.random() * numbers.length)];
-    }
+    for(let i = 0; i < 2; i++) code += letters[Math.floor(Math.random() * letters.length)];
+    for(let i = 0; i < 3; i++) code += numbers[Math.floor(Math.random() * numbers.length)];
     return code;
 }
 
-// ============ ODALAR ============
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Kayıt
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    if(!username || !password) return res.status(400).json({ error: 'Kullanıcı adı ve şifre gerekli!' });
+    
+    if(users.find(u => u.username === username)) return res.status(400).json({ error: 'Kullanıcı var!' });
+    
+    const hashed = await bcrypt.hash(password, 10);
+    users.push({ username, password: hashed, created_at: new Date().toISOString() });
+    saveData();
+    res.json({ success: true });
+});
+
+// Giriş
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    const user = users.find(u => u.username === username);
+    if(!user) return res.status(401).json({ error: 'Kullanıcı bulunamadı!' });
+    
+    const validPass = await bcrypt.compare(password, user.password);
+    if(!validPass) return res.status(401).json({ error: 'Hatalı şifre!' });
+    
+    const token = jwt.sign({ username }, 'GIZLI_ANAHTAR', { expiresIn: '24h' });
+    res.json({ token, username });
+});
 
 // Oda oluştur
 app.post('/create_room', async (req, res) => {
     const { username, room_name, token } = req.body;
-    
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
         let room_code;
-        let exists = true;
+        do { room_code = generateRoomCode(); } while(rooms.find(r => r.room_code === room_code));
         
-        // Benzersiz oda kodu oluştur
-        while(exists) {
-            room_code = generateRoomCode();
-            const check = await new Promise((resolve) => {
-                db.get('SELECT room_code FROM rooms WHERE room_code = ?', [room_code], (err, row) => {
-                    resolve(row);
-                });
-            });
-            if(!check) exists = false;
-        }
-        
-        db.run('INSERT INTO rooms (room_code, room_name, created_by) VALUES (?, ?, ?)',
-            [room_code, room_name, username],
-            (err) => {
-                if(err) return res.status(400).json({ error: 'Oda oluşturulamadı!' });
-                res.json({ success: true, room_code: room_code });
-            });
-    } catch(e) {
-        res.status(401).json({ error: 'Yetkisiz!' });
-    }
+        rooms.push({ room_code, room_name, created_by: username, created_at: new Date().toISOString() });
+        saveData();
+        res.json({ success: true, room_code });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
 // Odaya katıl
 app.post('/join_room', (req, res) => {
     const { username, room_code, token } = req.body;
-    
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
+        if(!rooms.find(r => r.room_code === room_code)) return res.status(404).json({ error: 'Oda bulunamadı!' });
         
-        // Oda var mı kontrol et
-        db.get('SELECT room_code FROM rooms WHERE room_code = ?', [room_code], (err, room) => {
-            if(!room) {
-                return res.status(404).json({ error: 'Oda bulunamadı!' });
-            }
-            
-            // Kullanıcının aktif odasını güncelle
-            db.run('INSERT OR REPLACE INTO user_room (username, current_room) VALUES (?, ?)',
-                [username, room_code],
-                (err) => {
-                    if(err) return res.status(400).json({ error: 'Odaya katılınamadı!' });
-                    res.json({ success: true, room_code: room_code });
-                });
-        });
-    } catch(e) {
-        res.status(401).json({ error: 'Yetkisiz!' });
-    }
+        const idx = userRooms.findIndex(u => u.username === username);
+        if(idx !== -1) userRooms[idx].current_room = room_code;
+        else userRooms.push({ username, current_room: room_code });
+        saveData();
+        res.json({ success: true, room_code });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Kullanıcının aktif odasını getir
+// Aktif oda
 app.post('/current_room', (req, res) => {
     const { username, token } = req.body;
-    
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        db.get('SELECT current_room FROM user_room WHERE username = ?', [username], (err, row) => {
-            res.json({ room_code: row ? row.current_room : null });
-        });
-    } catch(e) {
-        res.status(401).json({ error: 'Yetkisiz!' });
-    }
+        const ur = userRooms.find(u => u.username === username);
+        res.json({ room_code: ur ? ur.current_room : null });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Tüm odaları listele
+// Odaları listele
 app.post('/list_rooms', (req, res) => {
     const { token } = req.body;
-    
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        db.all('SELECT room_code, room_name, created_by FROM rooms ORDER BY created_at DESC', [], (err, rows) => {
-            res.json(rows);
-        });
-    } catch(e) {
-        res.status(401).json({ error: 'Yetkisiz!' });
-    }
+        res.json(rooms);
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// ============ MESAJLAR ============
-
-// Kayıt
-app.post('/register', async (req, res) => {
-    const { username, password } = req.body;
-    const hashed = await bcrypt.hash(password, 10);
-    
-    db.run('INSERT INTO users (username, password) VALUES (?, ?)', 
-        [username, hashed], 
-        (err) => {
-            if (err) return res.status(400).json({ error: 'Kullanıcı var!' });
-            res.json({ success: true });
-        });
-});
-
-// Giriş
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ error: 'Hatalı giriş!' });
-        }
-        
-        const token = jwt.sign({ username }, 'GIZLI_ANAHTAR', { expiresIn: '24h' });
-        res.json({ token, username });
-    });
-});
-
-// Mesaj gönder (aktif odaya)
+// Mesaj gönder
 app.post('/send', (req, res) => {
     const { from, message, token } = req.body;
-    
-    try {
-        const decoded = jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        // Kullanıcının aktif odasını bul
-        db.get('SELECT current_room FROM user_room WHERE username = ?', [from], (err, room) => {
-            if(!room || !room.current_room) {
-                return res.status(400).json({ error: 'Önce bir odaya katılın!' });
-            }
-            
-            db.run('INSERT INTO room_messages (room_code, from_user, message) VALUES (?, ?, ?)',
-                [room.current_room, from, message],
-                (err) => {
-                    if(err) return res.status(400).json({ error: 'Mesaj gönderilemedi!' });
-                    res.json({ success: true });
-                });
-        });
-    } catch(e) {
-        res.status(401).json({ error: 'Yetkisiz!' });
-    }
-});
-
-// Mesajları al (aktif odadan)
-app.post('/messages', (req, res) => {
-    const { username, token } = req.body;
-    
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
+        const ur = userRooms.find(u => u.username === from);
+        if(!ur || !ur.current_room) return res.status(400).json({ error: 'Önce bir odaya katılın!' });
         
-        db.get('SELECT current_room FROM user_room WHERE username = ?', [username], (err, room) => {
-            if(!room || !room.current_room) {
-                return res.json([]);
-            }
-            
-            db.all('SELECT * FROM room_messages WHERE room_code = ? ORDER BY timestamp DESC LIMIT 100',
-                [room.current_room], (err, rows) => {
-                    res.json(rows);
-                });
-        });
-    } catch(e) {
-        res.status(401).json({ error: 'Yetkisiz!' });
-    }
+        messages.push({ room_code: ur.current_room, from_user: from, message, timestamp: new Date().toISOString() });
+        if(messages.length > 500) messages = messages.slice(-500);
+        saveData();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-app.listen(3000, () => console.log('🔥 ODA SİSTEMİ AKTİF! http://localhost:3000'));
+// Mesajları al
+app.post('/messages', (req, res) => {
+    const { username, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const ur = userRooms.find(u => u.username === username);
+        if(!ur || !ur.current_room) return res.json([]);
+        
+        const roomMessages = messages.filter(m => m.room_code === ur.current_room).slice(-100);
+        res.json(roomMessages);
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`\n✅ ODA SİSTEMİ AKTİF!`);
+    console.log(`📍 http://localhost:${PORT}`);
+});
