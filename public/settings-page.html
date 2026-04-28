@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Ayarlar | IAIM Secure</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+body { background: #0a0c12; font-family: monospace; color: #cbd5e1; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.settings-card { background: #1e293b; padding: 2rem; border-radius: 28px; max-width: 500px; width: 90%; }
+.setting-item { margin: 1rem 0; padding: 0.5rem; border-bottom: 1px solid #334155; }
+.btn { background: #38bdf8; border: none; padding: 0.5rem 1rem; border-radius: 40px; cursor: pointer; margin-top: 1rem; width: 100%; }
+a { color: #38bdf8; text-decoration: none; }
+select, input { background: #0f172a; border: 1px solid #334155; padding: 0.5rem; border-radius: 8px; color: white; width: 100%; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="settings-card">
+    <h2><i class="fas fa-cog"></i> Ayarlar</h2>
+    <div class="setting-item">
+        <label><i class="fas fa-bell"></i> Bildirimler</label>
+        <select id="notifSetting">
+            <option value="on">Açık</option>
+            <option value="off">Kapalı</option>
+        </select>
+    </div>
+    <div class="setting-item">
+        <label><i class="fas fa-moon"></i> Tema</label>
+        <select id="themeSetting">
+            <option value="dark">Koyu</option>
+            <option value="light">Açık</option>
+        </select>
+    </div>
+    <button class="btn" onclick="saveSettings()">Kaydet</button>
+    <a href="index.html"><i class="fas fa-arrow-left"></i> Ana Sayfa</a>
+</div>
+<script>
+    function saveSettings() {
+        localStorage.setItem('notifications', document.getElementById('notifSetting').value);
+        localStorage.setItem('theme', document.getElementById('themeSetting').value);
+        alert('Ayarlar kaydedildi!');
+    }
+    document.getElementById('notifSetting').value = localStorage.getItem('notifications') || 'on';
+    document.getElementById('themeSetting').value = localStorage.getItem('theme') || 'dark';
+</script>
+</body>
+</html>
