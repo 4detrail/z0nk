@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.static('public'));
 
 // ============ GITHUB YEDEKLEME AYARLARI ============
-const GITHUB_TOKEN = "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";
+const GITHUB_TOKEN = "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";
 const GITHUB_REPO = "4detrail/z0nk";
 const GITHUB_BACKUP_FILE = "backup/chat_data.json";
 
