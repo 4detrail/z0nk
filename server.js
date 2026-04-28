@@ -21,33 +21,10 @@ let rooms = [];
 let messages = [];
 let userRooms = [];
 let userActivity = {};
-let userRoles = {}; // Kullanıcı rolleri: { roomCode: { username: role } }
-let bannedUsers = {}; // Banlanan kullanıcılar: { roomCode: [usernames] }
-
-// Roller
-const ROLES = {
-    OWNER: 'owner',      // Kurucu
-    MOD: 'mod',          // Moderatör
-    MEMBER: 'member'     // Üye
-};
 
 // ============ SPAM KORUMASI ============
 let lastMessageTime = {};
 const MESSAGE_COOLDOWN = 2000;
-
-// ============ ODA SİLME AYARLARI ============
-const ROOM_DELETE_SETTINGS = {
-    type: 'never', // 'never', 'timeout', 'afk'
-    timeoutHours: 24, // 24 saat sonra sil
-    afkMinutes: 30 // 30 dakika AFK kalırsa sil
-};
-
-// ============ MESAJ SİLME AYARLARI ============
-let messageDeleteSettings = {
-    enabled: true,
-    duration: 24, // saat
-    durationType: 'hours'
-};
 
 // ============ YEDEKLEME FONKSİYONLARI ============
 
@@ -59,8 +36,6 @@ async function backupToGitHub() {
             messages: messages,
             userRooms: userRooms,
             userActivity: userActivity,
-            userRoles: userRoles,
-            bannedUsers: bannedUsers,
             lastBackup: new Date().toISOString()
         };
         
@@ -120,8 +95,6 @@ async function restoreFromGitHub() {
             messages = backupData.messages || [];
             userRooms = backupData.userRooms || [];
             userActivity = backupData.userActivity || {};
-            userRoles = backupData.userRoles || {};
-            bannedUsers = backupData.bannedUsers || {};
             
             console.log(`✅ GitHub'dan geri yükleme başarılı - ${users.length} kullanıcı, ${rooms.length} oda`);
             saveData();
@@ -142,8 +115,6 @@ const loadData = () => {
         if(fs.existsSync('messages.json')) messages = JSON.parse(fs.readFileSync('messages.json', 'utf8'));
         if(fs.existsSync('userRooms.json')) userRooms = JSON.parse(fs.readFileSync('userRooms.json', 'utf8'));
         if(fs.existsSync('userActivity.json')) userActivity = JSON.parse(fs.readFileSync('userActivity.json', 'utf8'));
-        if(fs.existsSync('userRoles.json')) userRoles = JSON.parse(fs.readFileSync('userRoles.json', 'utf8'));
-        if(fs.existsSync('bannedUsers.json')) bannedUsers = JSON.parse(fs.readFileSync('bannedUsers.json', 'utf8'));
     } catch(e) {}
 };
 
@@ -153,71 +124,31 @@ const saveData = () => {
     fs.writeFileSync('messages.json', JSON.stringify(messages, null, 2));
     fs.writeFileSync('userRooms.json', JSON.stringify(userRooms, null, 2));
     fs.writeFileSync('userActivity.json', JSON.stringify(userActivity, null, 2));
-    fs.writeFileSync('userRoles.json', JSON.stringify(userRoles, null, 2));
-    fs.writeFileSync('bannedUsers.json', JSON.stringify(bannedUsers, null, 2));
 };
 
-// ============ OTOMATİK MESAJ SİLME (Ayarlanabilir) ============
+// ============ OTOMATİK YEDEKLEME (Her 5 dakika) ============
 setInterval(() => {
-    if (!messageDeleteSettings.enabled) return;
-    
-    const now = new Date();
-    let deleteBefore = new Date(now);
-    
-    if (messageDeleteSettings.durationType === 'hours') {
-        deleteBefore.setHours(now.getHours() - messageDeleteSettings.duration);
-    } else if (messageDeleteSettings.durationType === 'minutes') {
-        deleteBefore.setMinutes(now.getMinutes() - messageDeleteSettings.duration);
-    } else if (messageDeleteSettings.durationType === 'days') {
-        deleteBefore.setDate(now.getDate() - messageDeleteSettings.duration);
+    if (users.length > 0 || rooms.length > 0) {
+        backupToGitHub();
     }
-    
+}, 5 * 60 * 1000);
+
+// ============ OTOMATİK MESAJ SİLME (20 dakika) ============
+setInterval(() => {
+    const now = new Date();
+    const twentyMinsAgo = new Date(now.getTime() - 20 * 60 * 1000);
     const beforeCount = messages.length;
-    messages = messages.filter(msg => new Date(msg.timestamp) > deleteBefore);
+    
+    messages = messages.filter(msg => {
+        const msgDate = new Date(msg.timestamp);
+        return msgDate > twentyMinsAgo;
+    });
     
     if (messages.length !== beforeCount) {
-        console.log(`🗑️ ${beforeCount - messages.length} eski mesaj silindi`);
+        console.log(`🗑️ ${beforeCount - messages.length} eski mesaj silindi (20 dakika)`);
         saveData();
         backupToGitHub();
     }
-}, 60 * 1000);
-
-// ============ OTOMATİK ODA SİLME ============
-setInterval(() => {
-    if (ROOM_DELETE_SETTINGS.type === 'never') return;
-    
-    const now = Date.now();
-    for (let i = rooms.length - 1; i >= 0; i--) {
-        const room = rooms[i];
-        let shouldDelete = false;
-        
-        if (ROOM_DELETE_SETTINGS.type === 'timeout') {
-            const createdTime = new Date(room.created_at).getTime();
-            const hoursPassed = (now - createdTime) / (1000 * 60 * 60);
-            if (hoursPassed >= ROOM_DELETE_SETTINGS.timeoutHours) {
-                shouldDelete = true;
-            }
-        } else if (ROOM_DELETE_SETTINGS.type === 'afk') {
-            const lastActiveUsers = room.users.filter(u => userActivity[u] && (now - userActivity[u] < ROOM_DELETE_SETTINGS.afkMinutes * 60 * 1000));
-            if (lastActiveUsers.length === 0) {
-                shouldDelete = true;
-            }
-        }
-        
-        if (shouldDelete) {
-            // Odayı ve mesajlarını sil
-            messages = messages.filter(m => m.room_code !== room.room_code);
-            for (const user of room.users) {
-                const urIdx = userRooms.findIndex(u => u.username === user && u.current_room === room.room_code);
-                if (urIdx !== -1) userRooms.splice(urIdx, 1);
-            }
-            if (userRoles[room.room_code]) delete userRoles[room.room_code];
-            if (bannedUsers[room.room_code]) delete bannedUsers[room.room_code];
-            rooms.splice(i, 1);
-            console.log(`🗑️ Oda ${room.room_code} otomatik silindi`);
-        }
-    }
-    saveData();
 }, 60 * 1000);
 
 // ============ AFK kontrolü (10 dakika) ============
@@ -294,29 +225,6 @@ app.post('/update_activity', (req, res) => {
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// ============ ROL FONKSİYONLARI ============
-
-function getUserRole(roomCode, username) {
-    if (!userRoles[roomCode]) userRoles[roomCode] = {};
-    return userRoles[roomCode][username] || ROLES.MEMBER;
-}
-
-function setUserRole(roomCode, username, role) {
-    if (!userRoles[roomCode]) userRoles[roomCode] = {};
-    userRoles[roomCode][username] = role;
-    saveData();
-}
-
-function isOwner(roomCode, username) {
-    const room = rooms.find(r => r.room_code === roomCode);
-    return room && room.created_by === username;
-}
-
-function canModerate(roomCode, username) {
-    const role = getUserRole(roomCode, username);
-    return role === ROLES.OWNER || role === ROLES.MOD;
-}
-
 // ============ ODALAR ============
 
 app.post('/create_room', async (req, res) => {
@@ -332,16 +240,11 @@ app.post('/create_room', async (req, res) => {
             room_code, 
             room_name, 
             room_password: hashedPassword,
-            is_private: is_private || false,
+            is_private: is_private || false,  // PRIVATE ODA ÖZELLİĞİ
             created_by: username, 
             created_at: new Date().toISOString(),
             users: [username]
         });
-        
-        // Kurucuyu owner yap
-        if (!userRoles[room_code]) userRoles[room_code] = {};
-        userRoles[room_code][username] = ROLES.OWNER;
-        
         saveData();
         backupToGitHub();
         res.json({ success: true, room_code });
@@ -352,12 +255,6 @@ app.post('/join_room', async (req, res) => {
     const { username, room_code, room_password, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        // Ban kontrolü
-        if (bannedUsers[room_code] && bannedUsers[room_code].includes(username)) {
-            return res.status(403).json({ error: 'Bu odadan banlandınız!' });
-        }
-        
         const room = rooms.find(r => r.room_code === room_code);
         if(!room) return res.status(404).json({ error: 'Oda bulunamadı!' });
         
@@ -373,83 +270,9 @@ app.post('/join_room', async (req, res) => {
         
         if (!room.users.includes(username)) room.users.push(username);
         
-        // Yeni kullanıcıya member rolü ver
-        if (!userRoles[room_code]) userRoles[room_code] = {};
-        if (!userRoles[room_code][username]) userRoles[room_code][username] = ROLES.MEMBER;
-        
         userActivity[username] = Date.now();
         saveData();
         res.json({ success: true, room_code });
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-// Rol verme (sadece owner)
-app.post('/set_role', (req, res) => {
-    const { username, targetUsername, role, room_code, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        if (!isOwner(room_code, username)) {
-            return res.status(403).json({ error: 'Sadece oda kurucusu rol verebilir!' });
-        }
-        
-        if (!Object.values(ROLES).includes(role)) {
-            return res.status(400).json({ error: 'Geçersiz rol!' });
-        }
-        
-        setUserRole(room_code, targetUsername, role);
-        res.json({ success: true });
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-// Kullanıcı banlama (owner veya mod)
-app.post('/ban_user', (req, res) => {
-    const { username, targetUsername, room_code, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        if (!canModerate(room_code, username)) {
-            return res.status(403).json({ error: 'Yetkiniz yok!' });
-        }
-        
-        if (!bannedUsers[room_code]) bannedUsers[room_code] = [];
-        if (!bannedUsers[room_code].includes(targetUsername)) {
-            bannedUsers[room_code].push(targetUsername);
-            
-            // Kullanıcıyı odadan çıkar
-            const urIdx = userRooms.findIndex(u => u.username === targetUsername && u.current_room === room_code);
-            if (urIdx !== -1) {
-                const room = rooms.find(r => r.room_code === room_code);
-                if (room) {
-                    const userIdx = room.users.indexOf(targetUsername);
-                    if (userIdx !== -1) room.users.splice(userIdx, 1);
-                }
-                userRooms.splice(urIdx, 1);
-            }
-        }
-        
-        saveData();
-        res.json({ success: true });
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-// Kullanıcıyı ban'dan kaldır
-app.post('/unban_user', (req, res) => {
-    const { username, targetUsername, room_code, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        if (!canModerate(room_code, username)) {
-            return res.status(403).json({ error: 'Yetkiniz yok!' });
-        }
-        
-        if (bannedUsers[room_code]) {
-            const idx = bannedUsers[room_code].indexOf(targetUsername);
-            if (idx !== -1) bannedUsers[room_code].splice(idx, 1);
-        }
-        
-        saveData();
-        res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
@@ -460,7 +283,7 @@ app.post('/delete_room', (req, res) => {
         const room = rooms.find(r => r.room_code === room_code);
         if(!room) return res.status(404).json({ error: 'Oda bulunamadı!' });
         
-        if (room.created_by !== username && getUserRole(room_code, username) !== ROLES.OWNER) {
+        if (room.created_by !== username) {
             return res.status(403).json({ error: 'Bu odayı sadece oluşturan kişi silebilir!' });
         }
         
@@ -471,9 +294,6 @@ app.post('/delete_room', (req, res) => {
             const urIdx = userRooms.findIndex(u => u.username === user && u.current_room === room_code);
             if (urIdx !== -1) userRooms.splice(urIdx, 1);
         }
-        
-        if (userRoles[room_code]) delete userRoles[room_code];
-        if (bannedUsers[room_code]) delete bannedUsers[room_code];
         
         const roomIdx = rooms.findIndex(r => r.room_code === room_code);
         rooms.splice(roomIdx, 1);
@@ -515,12 +335,14 @@ app.post('/leave_room', (req, res) => {
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
+// ============ LİSTELEME - PRIVATE ODALARI GİZLE ============
 app.post('/list_rooms', (req, res) => {
     const { token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
+        // SADECE public odaları göster (is_private = false veya undefined)
         const publicRooms = rooms
-            .filter(r => !r.is_private)
+            .filter(r => !r.is_private)  // Private odaları gizle
             .map(r => ({
                 room_code: r.room_code,
                 room_name: r.room_name,
@@ -542,31 +364,8 @@ app.post('/room_users', (req, res) => {
         const room = rooms.find(r => r.room_code === room_code);
         if(!room) return res.json([]);
         
-        const usersWithRoles = room.users.map(u => ({
-            username: u,
-            role: getUserRole(room_code, u),
-            isActive: userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000)
-        }));
-        
-        res.json(usersWithRoles);
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-// ============ MESAJ AYARLARI ============
-
-app.post('/get_message_settings', (req, res) => {
-    res.json(messageDeleteSettings);
-});
-
-app.post('/set_message_settings', (req, res) => {
-    const { token, enabled, duration, durationType } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        if (enabled !== undefined) messageDeleteSettings.enabled = enabled;
-        if (duration !== undefined) messageDeleteSettings.duration = duration;
-        if (durationType !== undefined) messageDeleteSettings.durationType = durationType;
-        saveData();
-        res.json({ success: true, settings: messageDeleteSettings });
+        const activeUsers = room.users.filter(u => userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000));
+        res.json(activeUsers);
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
@@ -590,22 +389,17 @@ app.post('/send', (req, res) => {
         if(!ur || !ur.current_room) return res.status(400).json({ error: 'Önce bir odaya katılın!' });
         
         const room = rooms.find(r => r.room_code === ur.current_room);
-        if (!room) return res.status(400).json({ error: 'Oda silinmiş!' });
-        
-        // Ban kontrolü
-        if (bannedUsers[ur.current_room] && bannedUsers[ur.current_room].includes(from)) {
-            return res.status(403).json({ error: 'Bu odadan banlandınız!' });
+        if (!room) {
+            return res.status(400).json({ error: 'Oda silinmiş!' });
         }
         
         lastMessageTime[from] = now;
         userActivity[from] = Date.now();
-        
         messages.push({ 
             room_code: ur.current_room, 
             from_user: from, 
             message, 
-            timestamp: new Date().toISOString(),
-            role: getUserRole(ur.current_room, from)
+            timestamp: new Date().toISOString() 
         });
         
         saveData();
@@ -624,7 +418,7 @@ app.post('/messages', (req, res) => {
         
         const roomMessages = messages
             .filter(m => m.room_code === ur.current_room)
-            .slice(-200);
+            .slice(-100);
         
         res.json(roomMessages);
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
@@ -657,11 +451,12 @@ restoreFromGitHub().then(() => {
     loadData();
     console.log(`\n🔥 HEXAHACK IAIM CHAT SİSTEMİ AKTİF!`);
     console.log(`📍 http://localhost:${PORT}`);
-    console.log(`⏰ Mesaj silme ayarı: ${messageDeleteSettings.enabled ? messageDeleteSettings.duration + ' ' + messageDeleteSettings.durationType : 'Kapalı'}`);
-    console.log(`🗑️ Oda silme ayarı: ${ROOM_DELETE_SETTINGS.type}`);
+    console.log(`⏰ Mesajlar 20 dakika sonra otomatik silinecek`);
+    console.log(`🗑️ AFK kullanıcılar 10 dakika sonra atılacak`);
     console.log(`💾 GitHub yedekleme aktif - Her 5 dakikada bir yedekleniyor`);
-    console.log(`🛡️ Spam koruması aktif - ${MESSAGE_COOLDOWN/1000} saniye`);
-    console.log(`👑 Rol sistemi aktif - Owner/Mod/Member`);
+    console.log(`🛡️ Spam koruması aktif - ${MESSAGE_COOLDOWN/1000} saniye bekleme süresi`);
+    console.log(`🔒 Private oda sistemi aktif - Private odalar listede görünmez`);
+    console.log(`📁 Yedekler: https://github.com/${GITHUB_REPO}/tree/master/backup`);
 });
 
-app.listen(PORT, '0.0.0.0', () => {}); 
+app.listen(PORT, '0.0.0.0', () => {});
