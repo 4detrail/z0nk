@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
@@ -13,236 +14,183 @@ app.use(express.static('public'));
 // ============ GITHUB YEDEKLEME AYARLARI ============
 const GITHUB_TOKEN = "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";
 const GITHUB_REPO = "4detrail/z0nk";
-const GITHUB_BACKUP_FILE = "backup/chat_data.json";
+const GITHUB_BACKUP_FILES = [
+    { name: "servers.json", path: "backup/servers.json" },
+    { name: "channels.json", path: "backup/channels.json" },
+    { name: "messages.json", path: "backup/messages.json" },
+    { name: "users.json", path: "backup/users.json" },
+    { name: "user_sessions.json", path: "backup/user_sessions.json" },
+    { name: "user_activity.json", path: "backup/user_activity.json" }
+];
 
-// Veri dosyaları
+// ============ VERİ DOSYALARI ============
 let users = [];
-let rooms = [];
+let servers = [];
+let channels = [];
 let messages = [];
-let userRooms = [];
-let userActivity = {};
-let userRoles = {}; // Kullanıcı rolleri: { roomCode: { username: role } }
-let bannedUsers = {}; // Banlanan kullanıcılar: { roomCode: [usernames] }
+let userSessions = []; // { username, serverId, channelId }
+let userActivity = {}; // { username: timestamp }
+
+// Şifreleme anahtarı (32 byte)
+const ENCRYPTION_KEY = crypto.scryptSync('iaim-secure-key-2024', 'salt', 32);
+const IV_LENGTH = 16;
+
+function encrypt(text) {
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return iv.toString('hex') + ':' + encrypted;
+}
+
+function decrypt(encryptedText) {
+    const parts = encryptedText.split(':');
+    const iv = Buffer.from(parts.shift(), 'hex');
+    const encrypted = parts.join(':');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+}
 
 // Roller
-const ROLES = {
-    OWNER: 'owner',      // Kurucu
-    MOD: 'mod',          // Moderatör
-    MEMBER: 'member'     // Üye
-};
+const ROLES = { OWNER: 'owner', MOD: 'mod', MEMBER: 'member' };
 
-// ============ SPAM KORUMASI ============
+// Spam koruması
 let lastMessageTime = {};
 const MESSAGE_COOLDOWN = 2000;
 
-// ============ ODA SİLME AYARLARI ============
-const ROOM_DELETE_SETTINGS = {
-    type: 'never', // 'never', 'timeout', 'afk'
-    timeoutHours: 24, // 24 saat sonra sil
-    afkMinutes: 30 // 30 dakika AFK kalırsa sil
-};
-
-// ============ MESAJ SİLME AYARLARI ============
-let messageDeleteSettings = {
-    enabled: true,
-    duration: 24, // saat
-    durationType: 'hours'
-};
-
-// ============ YEDEKLEME FONKSİYONLARI ============
-
-async function backupToGitHub() {
-    try {
-        const backupData = {
-            users: users,
-            rooms: rooms,
-            messages: messages,
-            userRooms: userRooms,
-            userActivity: userActivity,
-            userRoles: userRoles,
-            bannedUsers: bannedUsers,
-            lastBackup: new Date().toISOString()
-        };
-        
-        let sha = null;
-        try {
-            const getRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_BACKUP_FILE}`, {
-                headers: {
-                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-            if (getRes.ok) {
-                const data = await getRes.json();
-                sha = data.sha;
-            }
-        } catch(e) {}
-        
-        const content = Buffer.from(JSON.stringify(backupData, null, 2)).toString('base64');
-        const putRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_BACKUP_FILE}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/vnd.github.v3+json'
-            },
-            body: JSON.stringify({
-                message: `Backup - ${new Date().toISOString()}`,
-                content: content,
-                sha: sha
-            })
-        });
-        
-        if (putRes.ok) {
-            console.log(`✅ GitHub yedekleme başarılı - ${new Date().toLocaleTimeString()}`);
-        }
-    } catch(e) {
-        console.error("GitHub yedekleme hatası:", e.message);
-    }
-}
-
-async function restoreFromGitHub() {
-    try {
-        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_BACKUP_FILE}`, {
-            headers: {
-                'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-        
-        if (res.ok) {
-            const data = await res.json();
-            const content = Buffer.from(data.content, 'base64').toString('utf8');
-            const backupData = JSON.parse(content);
-            
-            users = backupData.users || [];
-            rooms = backupData.rooms || [];
-            messages = backupData.messages || [];
-            userRooms = backupData.userRooms || [];
-            userActivity = backupData.userActivity || {};
-            userRoles = backupData.userRoles || {};
-            bannedUsers = backupData.bannedUsers || {};
-            
-            console.log(`✅ GitHub'dan geri yükleme başarılı - ${users.length} kullanıcı, ${rooms.length} oda`);
-            saveData();
-            return true;
-        }
-    } catch(e) {
-        console.log("GitHub geri yükleme yapılamadı (ilk çalıştırma olabilir)");
-    }
-    return false;
-}
-
-// ============ DOSYA İŞLEMLERİ ============
-
-const loadData = () => {
-    try {
-        if(fs.existsSync('users.json')) users = JSON.parse(fs.readFileSync('users.json', 'utf8'));
-        if(fs.existsSync('rooms.json')) rooms = JSON.parse(fs.readFileSync('rooms.json', 'utf8'));
-        if(fs.existsSync('messages.json')) messages = JSON.parse(fs.readFileSync('messages.json', 'utf8'));
-        if(fs.existsSync('userRooms.json')) userRooms = JSON.parse(fs.readFileSync('userRooms.json', 'utf8'));
-        if(fs.existsSync('userActivity.json')) userActivity = JSON.parse(fs.readFileSync('userActivity.json', 'utf8'));
-        if(fs.existsSync('userRoles.json')) userRoles = JSON.parse(fs.readFileSync('userRoles.json', 'utf8'));
-        if(fs.existsSync('bannedUsers.json')) bannedUsers = JSON.parse(fs.readFileSync('bannedUsers.json', 'utf8'));
-    } catch(e) {}
-};
-
-const saveData = () => {
-    fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
-    fs.writeFileSync('rooms.json', JSON.stringify(rooms, null, 2));
-    fs.writeFileSync('messages.json', JSON.stringify(messages, null, 2));
-    fs.writeFileSync('userRooms.json', JSON.stringify(userRooms, null, 2));
-    fs.writeFileSync('userActivity.json', JSON.stringify(userActivity, null, 2));
-    fs.writeFileSync('userRoles.json', JSON.stringify(userRoles, null, 2));
-    fs.writeFileSync('bannedUsers.json', JSON.stringify(bannedUsers, null, 2));
-};
-
-// ============ OTOMATİK MESAJ SİLME (Ayarlanabilir) ============
+// ============ OTOMATİK SİLME KONTROLÜ ============
 setInterval(() => {
-    if (!messageDeleteSettings.enabled) return;
-    
-    const now = new Date();
-    let deleteBefore = new Date(now);
-    
-    if (messageDeleteSettings.durationType === 'hours') {
-        deleteBefore.setHours(now.getHours() - messageDeleteSettings.duration);
-    } else if (messageDeleteSettings.durationType === 'minutes') {
-        deleteBefore.setMinutes(now.getMinutes() - messageDeleteSettings.duration);
-    } else if (messageDeleteSettings.durationType === 'days') {
-        deleteBefore.setDate(now.getDate() - messageDeleteSettings.duration);
-    }
-    
-    const beforeCount = messages.length;
-    messages = messages.filter(msg => new Date(msg.timestamp) > deleteBefore);
-    
-    if (messages.length !== beforeCount) {
-        console.log(`🗑️ ${beforeCount - messages.length} eski mesaj silindi`);
-        saveData();
-        backupToGitHub();
-    }
-}, 60 * 1000);
-
-// ============ OTOMATİK ODA SİLME ============
-setInterval(() => {
-    if (ROOM_DELETE_SETTINGS.type === 'never') return;
-    
     const now = Date.now();
-    for (let i = rooms.length - 1; i >= 0; i--) {
-        const room = rooms[i];
-        let shouldDelete = false;
-        
-        if (ROOM_DELETE_SETTINGS.type === 'timeout') {
-            const createdTime = new Date(room.created_at).getTime();
-            const hoursPassed = (now - createdTime) / (1000 * 60 * 60);
-            if (hoursPassed >= ROOM_DELETE_SETTINGS.timeoutHours) {
-                shouldDelete = true;
+    for (let i = 0; i < servers.length; i++) {
+        const server = servers[i];
+        if (server.deleteAfter && server.deleteAfter !== 'never') {
+            let deleteTime = 0;
+            if (server.deleteAfter.endsWith('h')) deleteTime = parseInt(server.deleteAfter) * 3600000;
+            else if (server.deleteAfter.endsWith('d')) deleteTime = parseInt(server.deleteAfter) * 86400000;
+            else if (server.deleteAfter.endsWith('w')) deleteTime = parseInt(server.deleteAfter) * 604800000;
+            
+            if (deleteTime > 0 && (now - new Date(server.createdAt).getTime() >= deleteTime)) {
+                // Sunucuyu sil
+                const serverId = server.id;
+                servers.splice(i, 1);
+                channels = channels.filter(c => c.serverId !== serverId);
+                messages = messages.filter(m => m.serverId !== serverId);
+                userSessions = userSessions.filter(s => s.serverId !== serverId);
+                console.log(`🗑️ Otomatik silme: Sunucu ${server.name} (${serverId}) silindi.`);
+                i--;
+                saveAllData();
+                backupToGitHub();
             }
-        } else if (ROOM_DELETE_SETTINGS.type === 'afk') {
-            const lastActiveUsers = room.users.filter(u => userActivity[u] && (now - userActivity[u] < ROOM_DELETE_SETTINGS.afkMinutes * 60 * 1000));
-            if (lastActiveUsers.length === 0) {
-                shouldDelete = true;
-            }
-        }
-        
-        if (shouldDelete) {
-            // Odayı ve mesajlarını sil
-            messages = messages.filter(m => m.room_code !== room.room_code);
-            for (const user of room.users) {
-                const urIdx = userRooms.findIndex(u => u.username === user && u.current_room === room.room_code);
-                if (urIdx !== -1) userRooms.splice(urIdx, 1);
-            }
-            if (userRoles[room.room_code]) delete userRoles[room.room_code];
-            if (bannedUsers[room.room_code]) delete bannedUsers[room.room_code];
-            rooms.splice(i, 1);
-            console.log(`🗑️ Oda ${room.room_code} otomatik silindi`);
         }
     }
-    saveData();
-}, 60 * 1000);
+}, 60 * 1000); // Her dakika kontrol et
 
-// ============ AFK kontrolü (10 dakika) ============
+// ============ AFK KONTROLÜ ============
 setInterval(() => {
     const now = Date.now();
     for (const [username, lastActive] of Object.entries(userActivity)) {
         if (now - lastActive > 10 * 60 * 1000) {
-            const idx = userRooms.findIndex(u => u.username === username);
-            if (idx !== -1) {
-                const room = rooms.find(r => r.room_code === userRooms[idx].current_room);
-                if (room && room.users) {
-                    const userIdx = room.users.indexOf(username);
-                    if (userIdx !== -1) room.users.splice(userIdx, 1);
+            const session = userSessions.find(s => s.username === username);
+            if (session) {
+                const server = servers.find(s => s.id === session.serverId);
+                if (server) {
+                    server.members = server.members.filter(m => m.username !== username);
                 }
-                userRooms.splice(idx, 1);
-                console.log(`🗑️ ${username} AFK olduğu için odadan atıldı`);
+                const idx = userSessions.findIndex(s => s.username === username);
+                if (idx !== -1) userSessions.splice(idx, 1);
+                console.log(`🗑️ ${username} AFK olduğu için sunucudan atıldı`);
             }
             delete userActivity[username];
-            saveData();
         }
     }
+    saveAllData();
 }, 60 * 1000);
 
-// ============ Oda kodu üretici ============
-function generateRoomCode() {
+// ============ YEDEKLEME FONKSİYONLARI ============
+async function backupToGitHub() {
+    try {
+        const backupData = {
+            users, servers, channels, messages, userSessions, userActivity,
+            lastBackup: new Date().toISOString()
+        };
+        
+        for (const file of GITHUB_BACKUP_FILES) {
+            let content = '';
+            if (file.name === 'users.json') content = JSON.stringify(users, null, 2);
+            else if (file.name === 'servers.json') content = JSON.stringify(servers, null, 2);
+            else if (file.name === 'channels.json') content = JSON.stringify(channels, null, 2);
+            else if (file.name === 'messages.json') content = JSON.stringify(messages, null, 2);
+            else if (file.name === 'user_sessions.json') content = JSON.stringify(userSessions, null, 2);
+            else if (file.name === 'user_activity.json') content = JSON.stringify(userActivity, null, 2);
+            
+            let sha = null;
+            try {
+                const getRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${file.path}`, {
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if (getRes.ok) {
+                    const data = await getRes.json();
+                    sha = data.sha;
+                }
+            } catch(e) {}
+            
+            const encoded = Buffer.from(content).toString('base64');
+            await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${file.path}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: `Backup ${file.name}`, content: encoded, sha })
+            });
+        }
+        console.log(`✅ GitHub yedekleme başarılı - ${new Date().toLocaleTimeString()}`);
+    } catch(e) { console.error("GitHub yedekleme hatası:", e.message); }
+}
+
+async function restoreFromGitHub() {
+    try {
+        for (const file of GITHUB_BACKUP_FILES) {
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${file.path}`, {
+                headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const content = Buffer.from(data.content, 'base64').toString('utf8');
+                if (file.name === 'users.json') users = JSON.parse(content);
+                else if (file.name === 'servers.json') servers = JSON.parse(content);
+                else if (file.name === 'channels.json') channels = JSON.parse(content);
+                else if (file.name === 'messages.json') messages = JSON.parse(content);
+                else if (file.name === 'user_sessions.json') userSessions = JSON.parse(content);
+                else if (file.name === 'user_activity.json') userActivity = JSON.parse(content);
+            }
+        }
+        console.log(`✅ GitHub'dan geri yükleme başarılı - ${users.length} kullanıcı, ${servers.length} sunucu`);
+        return true;
+    } catch(e) { console.log("GitHub geri yükleme yapılamadı (ilk çalıştırma)"); return false; }
+}
+
+function saveAllData() {
+    fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
+    fs.writeFileSync('servers.json', JSON.stringify(servers, null, 2));
+    fs.writeFileSync('channels.json', JSON.stringify(channels, null, 2));
+    fs.writeFileSync('messages.json', JSON.stringify(messages, null, 2));
+    fs.writeFileSync('user_sessions.json', JSON.stringify(userSessions, null, 2));
+    fs.writeFileSync('user_activity.json', JSON.stringify(userActivity, null, 2));
+}
+
+function loadAllData() {
+    try {
+        if(fs.existsSync('users.json')) users = JSON.parse(fs.readFileSync('users.json', 'utf8'));
+        if(fs.existsSync('servers.json')) servers = JSON.parse(fs.readFileSync('servers.json', 'utf8'));
+        if(fs.existsSync('channels.json')) channels = JSON.parse(fs.readFileSync('channels.json', 'utf8'));
+        if(fs.existsSync('messages.json')) messages = JSON.parse(fs.readFileSync('messages.json', 'utf8'));
+        if(fs.existsSync('user_sessions.json')) userSessions = JSON.parse(fs.readFileSync('user_sessions.json', 'utf8'));
+        if(fs.existsSync('user_activity.json')) userActivity = JSON.parse(fs.readFileSync('user_activity.json', 'utf8'));
+    } catch(e) {}
+}
+
+// ============ YARDIMCI FONKSİYONLAR ============
+function generateServerCode() {
     const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
     const numbers = '0123456789';
     let code = '#';
@@ -251,21 +199,37 @@ function generateRoomCode() {
     return code;
 }
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
 
-// ============ KULLANICILAR ============
+function getUserRole(serverId, username) {
+    const server = servers.find(s => s.id === serverId);
+    if (!server) return null;
+    const member = server.members.find(m => m.username === username);
+    return member ? member.role : null;
+}
 
+function isOwner(serverId, username) {
+    const server = servers.find(s => s.id === serverId);
+    return server && server.owner === username;
+}
+
+function canModerate(serverId, username) {
+    const role = getUserRole(serverId, username);
+    return role === ROLES.OWNER || role === ROLES.MOD;
+}
+
+// ============ API ENDPOINTLERİ ============
+
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// Kullanıcı işlemleri
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
-    if(!username || !password) return res.status(400).json({ error: 'Kullanıcı adı ve şifre gerekli!' });
-    
-    if(users.find(u => u.username === username)) return res.status(400).json({ error: 'Kullanıcı var!' });
-    
+    if (!username || !password) return res.status(400).json({ error: 'Kullanıcı adı ve şifre gerekli!' });
+    if (users.find(u => u.username === username)) return res.status(400).json({ error: 'Kullanıcı var!' });
     const hashed = await bcrypt.hash(password, 10);
-    users.push({ username, password: hashed, created_at: new Date().toISOString() });
-    saveData();
+    users.push({ username, password: hashed, createdAt: new Date().toISOString() });
+    saveAllData();
     backupToGitHub();
     res.json({ success: true });
 });
@@ -273,14 +237,12 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username);
-    if(!user) return res.status(401).json({ error: 'Kullanıcı bulunamadı!' });
-    
-    const validPass = await bcrypt.compare(password, user.password);
-    if(!validPass) return res.status(401).json({ error: 'Hatalı şifre!' });
-    
+    if (!user) return res.status(401).json({ error: 'Kullanıcı bulunamadı!' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Hatalı şifre!' });
     const token = jwt.sign({ username }, 'GIZLI_ANAHTAR', { expiresIn: '24h' });
     userActivity[username] = Date.now();
-    saveData();
+    saveAllData();
     res.json({ token, username });
 });
 
@@ -289,363 +251,350 @@ app.post('/update_activity', (req, res) => {
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
         userActivity[username] = Date.now();
-        saveData();
+        saveAllData();
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// ============ ROL FONKSİYONLARI ============
-
-function getUserRole(roomCode, username) {
-    if (!userRoles[roomCode]) userRoles[roomCode] = {};
-    return userRoles[roomCode][username] || ROLES.MEMBER;
-}
-
-function setUserRole(roomCode, username, role) {
-    if (!userRoles[roomCode]) userRoles[roomCode] = {};
-    userRoles[roomCode][username] = role;
-    saveData();
-}
-
-function isOwner(roomCode, username) {
-    const room = rooms.find(r => r.room_code === roomCode);
-    return room && room.created_by === username;
-}
-
-function canModerate(roomCode, username) {
-    const role = getUserRole(roomCode, username);
-    return role === ROLES.OWNER || role === ROLES.MOD;
-}
-
-// ============ ODALAR ============
-
-app.post('/create_room', async (req, res) => {
-    const { username, room_name, room_password, is_private, token } = req.body;
+// Sunucu işlemleri
+app.post('/create_server', async (req, res) => {
+    const { username, name, password, isPrivate, deleteAfter, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        let room_code;
-        do { room_code = generateRoomCode(); } while(rooms.find(r => r.room_code === room_code));
+        let serverCode;
+        do { serverCode = generateServerCode(); } while(servers.find(s => s.code === serverCode));
         
-        const hashedPassword = room_password ? await bcrypt.hash(room_password, 10) : null;
+        const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+        const serverId = generateId();
+        const newServer = {
+            id: serverId,
+            code: serverCode,
+            name: name,
+            password: hashedPassword,
+            isPrivate: isPrivate || false,
+            owner: username,
+            createdAt: new Date().toISOString(),
+            deleteAfter: deleteAfter || 'never',
+            members: [{ username, role: ROLES.OWNER }]
+        };
+        servers.push(newServer);
         
-        rooms.push({ 
-            room_code, 
-            room_name, 
-            room_password: hashedPassword,
-            is_private: is_private || false,
-            created_by: username, 
-            created_at: new Date().toISOString(),
-            users: [username]
-        });
+        // Varsayılan bir kanal oluştur ("genel")
+        channels.push({ id: generateId(), serverId, name: "genel", createdAt: new Date().toISOString() });
         
-        // Kurucuyu owner yap
-        if (!userRoles[room_code]) userRoles[room_code] = {};
-        userRoles[room_code][username] = ROLES.OWNER;
-        
-        saveData();
+        saveAllData();
         backupToGitHub();
-        res.json({ success: true, room_code });
+        res.json({ success: true, serverId, serverCode });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-app.post('/join_room', async (req, res) => {
-    const { username, room_code, room_password, token } = req.body;
+app.post('/join_server', async (req, res) => {
+    const { username, code, password, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
+        const server = servers.find(s => s.code === code);
+        if (!server) return res.status(404).json({ error: 'Sunucu bulunamadı!' });
         
-        // Ban kontrolü
-        if (bannedUsers[room_code] && bannedUsers[room_code].includes(username)) {
-            return res.status(403).json({ error: 'Bu odadan banlandınız!' });
+        if (server.password) {
+            if (!password) return res.status(401).json({ error: 'Sunucu şifreli!' });
+            const valid = await bcrypt.compare(password, server.password);
+            if (!valid) return res.status(401).json({ error: 'Şifre hatalı!' });
         }
         
-        const room = rooms.find(r => r.room_code === room_code);
-        if(!room) return res.status(404).json({ error: 'Oda bulunamadı!' });
-        
-        if (room.room_password) {
-            if (!room_password) return res.status(401).json({ error: 'Bu oda şifreli! Şifre girin!' });
-            const valid = await bcrypt.compare(room_password, room.room_password);
-            if (!valid) return res.status(401).json({ error: 'Oda şifresi hatalı!' });
+        if (server.members.some(m => m.username === username)) {
+            return res.status(400).json({ error: 'Zaten bu sunucudasınız!' });
         }
         
-        const idx = userRooms.findIndex(u => u.username === username);
-        if(idx !== -1) userRooms[idx].current_room = room_code;
-        else userRooms.push({ username, current_room: room_code });
+        server.members.push({ username, role: ROLES.MEMBER });
         
-        if (!room.users.includes(username)) room.users.push(username);
+        // Varsayılan kanalı seç
+        const defaultChannel = channels.find(c => c.serverId === server.id);
+        const session = userSessions.find(s => s.username === username);
+        if (session) {
+            session.serverId = server.id;
+            session.channelId = defaultChannel ? defaultChannel.id : null;
+        } else {
+            userSessions.push({ username, serverId: server.id, channelId: defaultChannel ? defaultChannel.id : null });
+        }
         
-        // Yeni kullanıcıya member rolü ver
-        if (!userRoles[room_code]) userRoles[room_code] = {};
-        if (!userRoles[room_code][username]) userRoles[room_code][username] = ROLES.MEMBER;
-        
-        userActivity[username] = Date.now();
-        saveData();
-        res.json({ success: true, room_code });
+        saveAllData();
+        backupToGitHub();
+        res.json({ success: true, serverId: server.id });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Rol verme (sadece owner)
-app.post('/set_role', (req, res) => {
-    const { username, targetUsername, role, room_code, token } = req.body;
+app.post('/leave_server', (req, res) => {
+    const { username, serverId, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        if (!isOwner(room_code, username)) {
-            return res.status(403).json({ error: 'Sadece oda kurucusu rol verebilir!' });
+        const server = servers.find(s => s.id === serverId);
+        if (server) {
+            server.members = server.members.filter(m => m.username !== username);
+            const sessionIdx = userSessions.findIndex(s => s.username === username && s.serverId === serverId);
+            if (sessionIdx !== -1) userSessions.splice(sessionIdx, 1);
+            saveAllData();
+            backupToGitHub();
         }
-        
-        if (!Object.values(ROLES).includes(role)) {
-            return res.status(400).json({ error: 'Geçersiz rol!' });
-        }
-        
-        setUserRole(room_code, targetUsername, role);
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// Kullanıcı banlama (owner veya mod)
-app.post('/ban_user', (req, res) => {
-    const { username, targetUsername, room_code, token } = req.body;
+app.post('/delete_server', (req, res) => {
+    const { username, serverId, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
+        const server = servers.find(s => s.id === serverId);
+        if (!server) return res.status(404).json({ error: 'Sunucu yok!' });
+        if (server.owner !== username) return res.status(403).json({ error: 'Sadece kurucu silebilir!' });
         
-        if (!canModerate(room_code, username)) {
-            return res.status(403).json({ error: 'Yetkiniz yok!' });
-        }
-        
-        if (!bannedUsers[room_code]) bannedUsers[room_code] = [];
-        if (!bannedUsers[room_code].includes(targetUsername)) {
-            bannedUsers[room_code].push(targetUsername);
-            
-            // Kullanıcıyı odadan çıkar
-            const urIdx = userRooms.findIndex(u => u.username === targetUsername && u.current_room === room_code);
-            if (urIdx !== -1) {
-                const room = rooms.find(r => r.room_code === room_code);
-                if (room) {
-                    const userIdx = room.users.indexOf(targetUsername);
-                    if (userIdx !== -1) room.users.splice(userIdx, 1);
-                }
-                userRooms.splice(urIdx, 1);
-            }
-        }
-        
-        saveData();
-        res.json({ success: true });
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-// Kullanıcıyı ban'dan kaldır
-app.post('/unban_user', (req, res) => {
-    const { username, targetUsername, room_code, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        if (!canModerate(room_code, username)) {
-            return res.status(403).json({ error: 'Yetkiniz yok!' });
-        }
-        
-        if (bannedUsers[room_code]) {
-            const idx = bannedUsers[room_code].indexOf(targetUsername);
-            if (idx !== -1) bannedUsers[room_code].splice(idx, 1);
-        }
-        
-        saveData();
-        res.json({ success: true });
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-app.post('/delete_room', (req, res) => {
-    const { username, room_code, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        const room = rooms.find(r => r.room_code === room_code);
-        if(!room) return res.status(404).json({ error: 'Oda bulunamadı!' });
-        
-        if (room.created_by !== username && getUserRole(room_code, username) !== ROLES.OWNER) {
-            return res.status(403).json({ error: 'Bu odayı sadece oluşturan kişi silebilir!' });
-        }
-        
-        const deletedMsgCount = messages.filter(m => m.room_code === room_code).length;
-        messages = messages.filter(m => m.room_code !== room_code);
-        
-        for (const user of room.users) {
-            const urIdx = userRooms.findIndex(u => u.username === user && u.current_room === room_code);
-            if (urIdx !== -1) userRooms.splice(urIdx, 1);
-        }
-        
-        if (userRoles[room_code]) delete userRoles[room_code];
-        if (bannedUsers[room_code]) delete bannedUsers[room_code];
-        
-        const roomIdx = rooms.findIndex(r => r.room_code === room_code);
-        rooms.splice(roomIdx, 1);
-        
-        console.log(`🗑️ Oda ${room_code} silindi, ${deletedMsgCount} mesaj temizlendi`);
-        saveData();
+        const idx = servers.findIndex(s => s.id === serverId);
+        servers.splice(idx, 1);
+        channels = channels.filter(c => c.serverId !== serverId);
+        messages = messages.filter(m => m.serverId !== serverId);
+        userSessions = userSessions.filter(s => s.serverId !== serverId);
+        saveAllData();
         backupToGitHub();
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-app.post('/current_room', (req, res) => {
-    const { username, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        const ur = userRooms.find(u => u.username === username);
-        res.json({ room_code: ur ? ur.current_room : null });
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-app.post('/leave_room', (req, res) => {
-    const { username, token } = req.body;
-    try {
-        jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        const urIdx = userRooms.findIndex(u => u.username === username);
-        if (urIdx !== -1) {
-            const roomCode = userRooms[urIdx].current_room;
-            const room = rooms.find(r => r.room_code === roomCode);
-            if (room) {
-                const userIdx = room.users.indexOf(username);
-                if (userIdx !== -1) room.users.splice(userIdx, 1);
-            }
-            userRooms.splice(urIdx, 1);
-        }
-        
-        saveData();
-        res.json({ success: true });
-    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
-});
-
-app.post('/list_rooms', (req, res) => {
+app.post('/list_servers', (req, res) => {
     const { token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        const publicRooms = rooms
-            .filter(r => !r.is_private)
-            .map(r => ({
-                room_code: r.room_code,
-                room_name: r.room_name,
-                created_by: r.created_by,
-                is_locked: !!r.room_password,
-                is_private: r.is_private || false,
-                users_count: r.users ? r.users.filter(u => userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000)).length : 0,
-                total_users: r.users ? r.users.length : 0,
-                message_count: messages.filter(m => m.room_code === r.room_code).length
+        const publicServers = servers
+            .filter(s => !s.isPrivate)
+            .map(s => ({
+                id: s.id,
+                code: s.code,
+                name: s.name,
+                isLocked: !!s.password,
+                memberCount: s.members.length,
+                owner: s.owner
             }));
-        res.json(publicRooms);
+        res.json(publicServers);
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-app.post('/room_users', (req, res) => {
-    const { room_code, token } = req.body;
+app.post('/my_servers', (req, res) => {
+    const { username, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        const room = rooms.find(r => r.room_code === room_code);
-        if(!room) return res.json([]);
-        
-        const usersWithRoles = room.users.map(u => ({
-            username: u,
-            role: getUserRole(room_code, u),
-            isActive: userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000)
-        }));
-        
-        res.json(usersWithRoles);
+        const myServers = servers.filter(s => s.members.some(m => m.username === username))
+            .map(s => ({ id: s.id, code: s.code, name: s.name, role: getUserRole(s.id, username), owner: s.owner }));
+        res.json(myServers);
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// ============ MESAJ AYARLARI ============
-
-app.post('/get_message_settings', (req, res) => {
-    res.json(messageDeleteSettings);
-});
-
-app.post('/set_message_settings', (req, res) => {
-    const { token, enabled, duration, durationType } = req.body;
+app.post('/current_session', (req, res) => {
+    const { username, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        if (enabled !== undefined) messageDeleteSettings.enabled = enabled;
-        if (duration !== undefined) messageDeleteSettings.duration = duration;
-        if (durationType !== undefined) messageDeleteSettings.durationType = durationType;
-        saveData();
-        res.json({ success: true, settings: messageDeleteSettings });
+        const session = userSessions.find(s => s.username === username);
+        res.json({ serverId: session?.serverId, channelId: session?.channelId });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// ============ MESAJLAR ============
-
-app.post('/send', (req, res) => {
-    const { from, message, token } = req.body;
+app.post('/set_channel', (req, res) => {
+    const { username, serverId, channelId, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        
-        const now = Date.now();
-        const lastTime = lastMessageTime[from] || 0;
-        if (now - lastTime < MESSAGE_COOLDOWN) {
-            return res.status(429).json({ 
-                error: `Lütfen ${Math.ceil((MESSAGE_COOLDOWN - (now - lastTime)) / 1000)} saniye bekleyin!`,
-                waitTime: MESSAGE_COOLDOWN - (now - lastTime)
-            });
+        const session = userSessions.find(s => s.username === username);
+        if (session) {
+            session.serverId = serverId;
+            session.channelId = channelId;
+        } else {
+            userSessions.push({ username, serverId, channelId });
         }
-        
-        const ur = userRooms.find(u => u.username === from);
-        if(!ur || !ur.current_room) return res.status(400).json({ error: 'Önce bir odaya katılın!' });
-        
-        const room = rooms.find(r => r.room_code === ur.current_room);
-        if (!room) return res.status(400).json({ error: 'Oda silinmiş!' });
-        
-        // Ban kontrolü
-        if (bannedUsers[ur.current_room] && bannedUsers[ur.current_room].includes(from)) {
-            return res.status(403).json({ error: 'Bu odadan banlandınız!' });
-        }
-        
-        lastMessageTime[from] = now;
-        userActivity[from] = Date.now();
-        
-        messages.push({ 
-            room_code: ur.current_room, 
-            from_user: from, 
-            message, 
-            timestamp: new Date().toISOString(),
-            role: getUserRole(ur.current_room, from)
-        });
-        
-        saveData();
+        userActivity[username] = Date.now();
+        saveAllData();
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-app.post('/messages', (req, res) => {
-    const { username, token } = req.body;
+// Kanal işlemleri
+app.post('/create_channel', (req, res) => {
+    const { username, serverId, channelName, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        const ur = userRooms.find(u => u.username === username);
-        if(!ur || !ur.current_room) return res.json([]);
-        
-        userActivity[username] = Date.now();
-        
-        const roomMessages = messages
-            .filter(m => m.room_code === ur.current_room)
-            .slice(-200);
-        
-        res.json(roomMessages);
+        const role = getUserRole(serverId, username);
+        if (role !== ROLES.OWNER && role !== ROLES.MOD) {
+            return res.status(403).json({ error: 'Kanal oluşturmak için yetkiniz yok!' });
+        }
+        const newChannel = { id: generateId(), serverId, name: channelName, createdAt: new Date().toISOString() };
+        channels.push(newChannel);
+        saveAllData();
+        backupToGitHub();
+        res.json({ success: true, channel: newChannel });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
+
+app.post('/delete_channel', (req, res) => {
+    const { username, channelId, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const channel = channels.find(c => c.id === channelId);
+        if (!channel) return res.status(404).json({ error: 'Kanal yok!' });
+        const role = getUserRole(channel.serverId, username);
+        if (role !== ROLES.OWNER && role !== ROLES.MOD) {
+            return res.status(403).json({ error: 'Yetkiniz yok!' });
+        }
+        channels = channels.filter(c => c.id !== channelId);
+        messages = messages.filter(m => m.channelId !== channelId);
+        saveAllData();
+        backupToGitHub();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+app.post('/server_channels', (req, res) => {
+    const { serverId, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const serverChannels = channels.filter(c => c.serverId === serverId);
+        res.json(serverChannels);
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+// Mesaj işlemleri (şifreli)
+app.post('/send_message', (req, res) => {
+    const { from, channelId, message, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const now = Date.now();
+        if (lastMessageTime[from] && now - lastMessageTime[from] < MESSAGE_COOLDOWN) {
+            return res.status(429).json({ error: 'Çok hızlı mesaj gönderiyorsunuz!' });
+        }
+        
+        const session = userSessions.find(s => s.username === from);
+        if (!session || !session.serverId || !session.channelId) {
+            return res.status(400).json({ error: 'Önce bir kanal seçin!' });
+        }
+        
+        const channel = channels.find(c => c.id === channelId);
+        if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı!' });
+        
+        const encryptedMsg = encrypt(message);
+        messages.push({
+            id: generateId(),
+            serverId: session.serverId,
+            channelId,
+            from,
+            content: encryptedMsg,
+            timestamp: new Date().toISOString()
+        });
+        
+        lastMessageTime[from] = now;
+        userActivity[from] = now;
+        saveAllData();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+app.post('/get_messages', (req, res) => {
+    const { channelId, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const channelMessages = messages
+            .filter(m => m.channelId === channelId)
+            .slice(-200)
+            .map(m => ({
+                id: m.id,
+                from: m.from,
+                content: decrypt(m.content),
+                timestamp: m.timestamp
+            }));
+        res.json(channelMessages);
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+app.post('/delete_message', (req, res) => {
+    const { username, messageId, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const msg = messages.find(m => m.id === messageId);
+        if (!msg) return res.status(404).json({ error: 'Mesaj yok!' });
+        const role = getUserRole(msg.serverId, username);
+        if (role !== ROLES.OWNER && role !== ROLES.MOD && msg.from !== username) {
+            return res.status(403).json({ error: 'Bu mesajı silme yetkiniz yok!' });
+        }
+        messages = messages.filter(m => m.id !== messageId);
+        saveAllData();
+        backupToGitHub();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+// Rol işlemleri
+app.post('/set_role', (req, res) => {
+    const { username, targetUsername, serverId, role, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        if (!isOwner(serverId, username)) return res.status(403).json({ error: 'Sadece kurucu rol atayabilir!' });
+        if (!Object.values(ROLES).includes(role)) return res.status(400).json({ error: 'Geçersiz rol!' });
+        
+        const server = servers.find(s => s.id === serverId);
+        const member = server.members.find(m => m.username === targetUsername);
+        if (member) member.role = role;
+        saveAllData();
+        backupToGitHub();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+app.post('/ban_user', (req, res) => {
+    const { username, targetUsername, serverId, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        if (!canModerate(serverId, username)) return res.status(403).json({ error: 'Yetkiniz yok!' });
+        
+        const server = servers.find(s => s.id === serverId);
+        server.members = server.members.filter(m => m.username !== targetUsername);
+        const session = userSessions.find(s => s.username === targetUsername && s.serverId === serverId);
+        if (session) userSessions = userSessions.filter(s => s !== session);
+        saveAllData();
+        backupToGitHub();
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+app.post('/server_members', (req, res) => {
+    const { serverId, token } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        const server = servers.find(s => s.id === serverId);
+        if (!server) return res.json([]);
+        res.json(server.members);
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+// Mesaj silme ayarları (genel)
+let messageAutoDelete = { enabled: false, hours: 24 };
+app.post('/get_message_auto_delete', (req, res) => res.json(messageAutoDelete));
+app.post('/set_message_auto_delete', (req, res) => {
+    const { token, enabled, hours } = req.body;
+    try {
+        jwt.verify(token, 'GIZLI_ANAHTAR');
+        messageAutoDelete = { enabled, hours: hours || 24 };
+        res.json({ success: true });
+    } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
+});
+
+setInterval(() => {
+    if (messageAutoDelete.enabled) {
+        const limit = new Date(Date.now() - messageAutoDelete.hours * 3600000);
+        messages = messages.filter(m => new Date(m.timestamp) > limit);
+        saveAllData();
+    }
+}, 3600000);
 
 app.post('/logout', (req, res) => {
     const { username, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        const idx = userRooms.findIndex(u => u.username === username);
-        if (idx !== -1) {
-            const room = rooms.find(r => r.room_code === userRooms[idx].current_room);
-            if (room) {
-                const userIdx = room.users.indexOf(username);
-                if (userIdx !== -1) room.users.splice(userIdx, 1);
-            }
-            userRooms.splice(idx, 1);
-        }
+        userSessions = userSessions.filter(s => s.username !== username);
         delete userActivity[username];
-        delete lastMessageTime[username];
-        saveData();
+        saveAllData();
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
@@ -654,14 +603,13 @@ app.post('/logout', (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 restoreFromGitHub().then(() => {
-    loadData();
-    console.log(`\n🔥 HEXAHACK IAIM CHAT SİSTEMİ AKTİF!`);
+    loadAllData();
+    console.log(`\n🔥 IAIM SECURE v8.0 | SUNUCU + KANAL SİSTEMİ AKTİF`);
     console.log(`📍 http://localhost:${PORT}`);
-    console.log(`⏰ Mesaj silme ayarı: ${messageDeleteSettings.enabled ? messageDeleteSettings.duration + ' ' + messageDeleteSettings.durationType : 'Kapalı'}`);
-    console.log(`🗑️ Oda silme ayarı: ${ROOM_DELETE_SETTINGS.type}`);
-    console.log(`💾 GitHub yedekleme aktif - Her 5 dakikada bir yedekleniyor`);
-    console.log(`🛡️ Spam koruması aktif - ${MESSAGE_COOLDOWN/1000} saniye`);
-    console.log(`👑 Rol sistemi aktif - Owner/Mod/Member`);
+    console.log(`🔐 Şifreleme: AES-256-CBC aktif`);
+    console.log(`💾 GitHub yedekleme: Her 10 dakikada bir`);
+    console.log(`🛡️ Rol sistemi: Owner / Mod / Member`);
+    console.log(`🗑️ Otomatik silme: Sunucu bazlı ayarlanabilir`);
 });
 
 app.listen(PORT, '0.0.0.0', () => {});
