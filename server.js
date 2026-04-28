@@ -12,7 +12,7 @@ app.use(express.static('public'));
 
 // ============ GITHUB YEDEKLEME AYARLARI ============
 const GITHUB_TOKEN = "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";
-const GITHUB_REPO = "4detrail/z0nk";  // Repo adın düzeltildi
+const GITHUB_REPO = "4detrail/z0nk";
 const GITHUB_BACKUP_FILE = "backup/chat_data.json";
 
 // Veri dosyaları
@@ -21,6 +21,10 @@ let rooms = [];
 let messages = [];
 let userRooms = [];
 let userActivity = {};
+
+// ============ SPAM KORUMASI ============
+let lastMessageTime = {};
+const MESSAGE_COOLDOWN = 2000;
 
 // ============ YEDEKLEME FONKSİYONLARI ============
 
@@ -224,7 +228,7 @@ app.post('/update_activity', (req, res) => {
 // ============ ODALAR ============
 
 app.post('/create_room', async (req, res) => {
-    const { username, room_name, room_password, token } = req.body;
+    const { username, room_name, room_password, is_private, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
         let room_code;
@@ -236,6 +240,7 @@ app.post('/create_room', async (req, res) => {
             room_code, 
             room_name, 
             room_password: hashedPassword,
+            is_private: is_private || false,  // PRIVATE ODA ÖZELLİĞİ
             created_by: username, 
             created_at: new Date().toISOString(),
             users: [username]
@@ -271,7 +276,6 @@ app.post('/join_room', async (req, res) => {
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
-// ODAYI SİL (tüm mesajlarıyla birlikte)
 app.post('/delete_room', (req, res) => {
     const { username, room_code, token } = req.body;
     try {
@@ -331,19 +335,24 @@ app.post('/leave_room', (req, res) => {
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
 
+// ============ LİSTELEME - PRIVATE ODALARI GİZLE ============
 app.post('/list_rooms', (req, res) => {
     const { token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
-        const publicRooms = rooms.map(r => ({
-            room_code: r.room_code,
-            room_name: r.room_name,
-            created_by: r.created_by,
-            is_locked: !!r.room_password,
-            users_count: r.users ? r.users.filter(u => userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000)).length : 0,
-            total_users: r.users ? r.users.length : 0,
-            message_count: messages.filter(m => m.room_code === r.room_code).length
-        }));
+        // SADECE public odaları göster (is_private = false veya undefined)
+        const publicRooms = rooms
+            .filter(r => !r.is_private)  // Private odaları gizle
+            .map(r => ({
+                room_code: r.room_code,
+                room_name: r.room_name,
+                created_by: r.created_by,
+                is_locked: !!r.room_password,
+                is_private: r.is_private || false,
+                users_count: r.users ? r.users.filter(u => userActivity[u] && (Date.now() - userActivity[u] < 10 * 60 * 1000)).length : 0,
+                total_users: r.users ? r.users.length : 0,
+                message_count: messages.filter(m => m.room_code === r.room_code).length
+            }));
         res.json(publicRooms);
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
 });
@@ -366,6 +375,16 @@ app.post('/send', (req, res) => {
     const { from, message, token } = req.body;
     try {
         jwt.verify(token, 'GIZLI_ANAHTAR');
+        
+        const now = Date.now();
+        const lastTime = lastMessageTime[from] || 0;
+        if (now - lastTime < MESSAGE_COOLDOWN) {
+            return res.status(429).json({ 
+                error: `Lütfen ${Math.ceil((MESSAGE_COOLDOWN - (now - lastTime)) / 1000)} saniye bekleyin!`,
+                waitTime: MESSAGE_COOLDOWN - (now - lastTime)
+            });
+        }
+        
         const ur = userRooms.find(u => u.username === from);
         if(!ur || !ur.current_room) return res.status(400).json({ error: 'Önce bir odaya katılın!' });
         
@@ -374,6 +393,7 @@ app.post('/send', (req, res) => {
             return res.status(400).json({ error: 'Oda silinmiş!' });
         }
         
+        lastMessageTime[from] = now;
         userActivity[from] = Date.now();
         messages.push({ 
             room_code: ur.current_room, 
@@ -418,6 +438,7 @@ app.post('/logout', (req, res) => {
             userRooms.splice(idx, 1);
         }
         delete userActivity[username];
+        delete lastMessageTime[username];
         saveData();
         res.json({ success: true });
     } catch(e) { res.status(401).json({ error: 'Yetkisiz!' }); }
@@ -433,6 +454,8 @@ restoreFromGitHub().then(() => {
     console.log(`⏰ Mesajlar 20 dakika sonra otomatik silinecek`);
     console.log(`🗑️ AFK kullanıcılar 10 dakika sonra atılacak`);
     console.log(`💾 GitHub yedekleme aktif - Her 5 dakikada bir yedekleniyor`);
+    console.log(`🛡️ Spam koruması aktif - ${MESSAGE_COOLDOWN/1000} saniye bekleme süresi`);
+    console.log(`🔒 Private oda sistemi aktif - Private odalar listede görünmez`);
     console.log(`📁 Yedekler: https://github.com/${GITHUB_REPO}/tree/master/backup`);
 });
 
