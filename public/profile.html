@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Profilim | IAIM Secure</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+body { background: #0a0c12; font-family: monospace; color: #cbd5e1; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.profile-card { background: #1e293b; padding: 2rem; border-radius: 28px; text-align: center; max-width: 400px; }
+.profile-icon { font-size: 5rem; color: #38bdf8; }
+.btn { background: #38bdf8; border: none; padding: 0.5rem 1rem; border-radius: 40px; cursor: pointer; margin-top: 1rem; }
+a { color: #38bdf8; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="profile-card">
+    <i class="fas fa-user-circle profile-icon"></i>
+    <h2 id="username">Kullanıcı Adı</h2>
+    <p><i class="fas fa-shield-alt"></i> Rol: <span id="role">Üye</span></p>
+    <p><i class="fas fa-calendar"></i> Katılma Tarihi: <span id="joined">-</span></p>
+    <a href="index.html" class="btn"><i class="fas fa-arrow-left"></i> Ana Sayfa</a>
+</div>
+<script>
+    const user = localStorage.getItem('currentUser') || 'Misafir';
+    document.getElementById('username').innerText = user;
+    document.getElementById('role').innerText = localStorage.getItem('userRole') || 'Üye';
+</script>
+</body>
+</html>
