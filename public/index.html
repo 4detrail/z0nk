@@ -345,39 +345,44 @@
             color: #22c55e;
         }
 
-        .context-menu {
-            display: none;
-            position: absolute;
-            background: #1e293b;
-            border: 1px solid #38bdf8;
-            border-radius: 12px;
-            padding: 0.5rem;
-            z-index: 1000;
-            min-width: 150px;
-            right: 0;
-            top: 100%;
+        .room-list {
+            max-height: 220px;
+            overflow-y: auto;
+            margin-top: 0.8rem;
         }
 
-        .context-menu.active {
-            display: block;
-        }
-
-        .context-menu button {
-            width: 100%;
-            background: none;
-            border: none;
-            color: #e2e8f0;
-            padding: 0.5rem;
-            text-align: left;
+        .room-item {
+            background: rgba(30, 41, 59, 0.5);
+            padding: 0.6rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 40px;
+            border-left: 3px solid #38bdf8;
             cursor: pointer;
-            border-radius: 8px;
-            font-size: 0.8rem;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .room-item:hover { background: rgba(56, 189, 248, 0.15); transform: translateX(5px); }
+        
+        .room-info { flex: 1; cursor: pointer; color: #cbd5e1; }
+        .room-info strong { color: #38bdf8; }
+        
+        .delete-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.7rem;
             transition: all 0.2s;
         }
-
-        .context-menu button:hover {
-            background: rgba(56, 189, 248, 0.2);
-        }
+        
+        .delete-btn:hover { background: #ef4444; color: #fff; transform: scale(1.02); }
 
         .section-title {
             text-align: center;
@@ -534,61 +539,6 @@
             margin: 1rem 0;
         }
 
-        /* Settings Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 20000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal {
-            background: #0f172a;
-            border: 1px solid #38bdf8;
-            border-radius: 28px;
-            padding: 2rem;
-            width: 90%;
-            max-width: 600px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-        }
-
-        .modal h2 {
-            color: #38bdf8;
-            margin-bottom: 1.5rem;
-        }
-
-        .settings-group {
-            margin: 1rem 0;
-            color: #cbd5e1;
-        }
-
-        .settings-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #94a3b8;
-        }
-
-        .settings-group select,
-        .settings-group input {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid #334155;
-            padding: 0.75rem;
-            border-radius: 12px;
-            color: #f1f5f9;
-            font-family: monospace;
-        }
-
         .toggle-sidebar-btn {
             position: fixed;
             top: 20px;
@@ -641,7 +591,7 @@
 ║  ██╔══██║██╔══╝   ██╔██╗ ██╔══██║██╔══██║██╔══██║██║     ██╔═██╗   ║
 ║  ██║  ██║███████╗██╔╝ ██╗██║  ██║██║  ██║██║  ██║╚██████╗██║  ██╗  ║
 ║  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝  ║
-║                     IAIM SECURE COMMUNICATIONS v8.0                ║
+║                     IAIM SECURE COMMUNICATIONS v1.0.0               ║
 ║                ══ ENCRYPTED CHAT • ROOM DELETE • AFK ══            ║
 ╚════════════════════════════════════════════════════════════════════╝
             </pre>
@@ -686,33 +636,6 @@
     </div>
 
     <button class="toggle-sidebar-btn" id="toggleSidebarBtn">☰ MENÜ</button>
-
-    <!-- SETTINGS MODAL -->
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal">
-            <h2>⚙️ AYARLAR</h2>
-            <div class="settings-group">
-                <label>Oda AFK Silme Süresi</label>
-                <select id="afkTimeout">
-                    <option value="15">15 Dakika</option>
-                    <option value="30">30 Dakika</option>
-                    <option value="60">1 Saat</option>
-                    <option value="0">Asla Silme</option>
-                </select>
-            </div>
-            <div class="settings-group">
-                <label>Mesaj Silme Süresi</label>
-                <select id="msgTimeout">
-                    <option value="0">Asla Silme</option>
-                    <option value="30">30 Dakika</option>
-                    <option value="60">1 Saat</option>
-                    <option value="24">24 Saat</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" onclick="saveSettings()">💾 KAYDET</button>
-            <button class="btn" onclick="closeSettings()">❌ İPTAL</button>
-        </div>
-    </div>
 
     <!-- MAIN APP -->
     <div id="mainApp" class="main-app">
@@ -845,7 +768,7 @@
             msgTimeout: 0
         };
 
-        // ========== AUDIO SYSTEM (FIXED) ==========
+        // ========== AUDIO SYSTEM ==========
         let audioCtx = null;
 
         function initAudio() {
@@ -970,32 +893,6 @@
             document.getElementById('joinRoomForm').style.display = 'block';
             document.getElementById('createRoomForm').style.display = 'none';
             document.getElementById('roomListContainer').style.display = 'none';
-        }
-
-        // ========== SETTINGS ==========
-        function openSettings() {
-            document.getElementById('settingsModal').classList.add('active');
-            document.getElementById('afkTimeout').value = roomSettings.afkTimeout;
-            document.getElementById('msgTimeout').value = roomSettings.msgTimeout;
-        }
-
-        function closeSettings() {
-            document.getElementById('settingsModal').classList.remove('active');
-        }
-
-        function saveSettings() {
-            roomSettings.afkTimeout = parseInt(document.getElementById('afkTimeout').value);
-            roomSettings.msgTimeout = parseInt(document.getElementById('msgTimeout').value);
-            localStorage.setItem('iaim_settings', JSON.stringify(roomSettings));
-            playSound('success');
-            alert('✅ Ayarlar kaydedildi!');
-            closeSettings();
-        }
-
-        // Load saved settings
-        const savedSettings = localStorage.getItem('iaim_settings');
-        if (savedSettings) {
-            roomSettings = JSON.parse(savedSettings);
         }
 
         // ========== API ==========
@@ -1183,84 +1080,18 @@
                 userList.innerHTML = res.users.map(u => {
                     let roleBadge = '';
                     if (u.role === 'owner') roleBadge = '<span class="role-badge owner">👑 KURUCU</span>';
-                    else if (u.role === 'moderator') roleBadge =
-                        '<span class="role-badge moderator">🛡️ MOD</span>';
+                    else if (u.role === 'moderator') roleBadge = '<span class="role-badge moderator">🛡️ MOD</span>';
 
                     return `
-                        <div class="user-item" oncontextmenu="showContextMenu(event, '${u.username}', '${u.role}')" onclick="hideContextMenu()">
+                        <div class="user-item">
                             <span>🟢</span>
                             <span>${escapeHtml(u.username)}</span>
                             ${roleBadge}
-                            <div class="context-menu" id="ctx-${u.username}">
-                                ${u.role === 'owner' ? `<button>👑 Kurucu</button>` : ''}
-                                ${u.role === 'owner' || (currentUserRole === 'owner' || currentUserRole === 'moderator') ? 
-                                    `<button onclick="promoteUser('${u.username}')">🛡️ Moderatör Yap</button>
-                                     <button onclick="banUser('${u.username}')">⛔ Banla</button>` : ''}
-                            </div>
                         </div>
                     `;
                 }).join('');
             } else {
-                userList.innerHTML =
-                    '<div style="color: #64748b; text-align: center; padding: 1rem;">Kullanıcı yok...</div>';
-            }
-        }
-
-        let currentUserRole = null;
-
-        async function getUserRole() {
-            const res = await apiCall('/user_role', { username: currentUser, room_code: currentRoom, token });
-            currentUserRole = res.role;
-        }
-
-        function showContextMenu(e, username, role) {
-            e.preventDefault();
-            hideContextMenu();
-            const menu = document.getElementById('ctx-' + username);
-            if (menu) {
-                menu.classList.add('active');
-                getUserRole();
-            }
-        }
-
-        function hideContextMenu() {
-            document.querySelectorAll('.context-menu').forEach(m => m.classList.remove('active'));
-        }
-
-        document.addEventListener('click', hideContextMenu);
-
-        async function promoteUser(targetUser) {
-            const res = await apiCall('/promote_user', {
-                username: currentUser,
-                target_user: targetUser,
-                room_code: currentRoom,
-                token
-            });
-            if (res.success) {
-                playSound('success');
-                alert(`✅ ${targetUser} moderatör yapıldı!`);
-                await loadUserList();
-            } else {
-                playSound('error');
-                alert("❌ " + (res.error || "Yetkiniz yok!"));
-            }
-        }
-
-        async function banUser(targetUser) {
-            if (!confirm(`${targetUser} kullanıcısını banlamak istediğinize emin misiniz?`)) return;
-            const res = await apiCall('/ban_user', {
-                username: currentUser,
-                target_user: targetUser,
-                room_code: currentRoom,
-                token
-            });
-            if (res.success) {
-                playSound('success');
-                alert(`✅ ${targetUser} banlandı!`);
-                await loadUserList();
-            } else {
-                playSound('error');
-                alert("❌ " + (res.error || "Yetkiniz yok!"));
+                userList.innerHTML = '<div style="color: #64748b; text-align: center; padding: 1rem;">Kullanıcı yok...</div>';
             }
         }
 
@@ -1342,27 +1173,12 @@
         document.getElementById('logoutBtn').onclick = logoutUser;
         document.getElementById('messageInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
-        // Settings button in right sidebar header
-        const settingsBtn = document.createElement('button');
-        settingsBtn.className = 'btn';
-        settingsBtn.textContent = '⚙️';
-        settingsBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; z-index: 15000;';
-        settingsBtn.onclick = openSettings;
-        document.body.appendChild(settingsBtn);
-
         window.joinRoomByCode = joinRoomByCode;
         window.deleteRoom = deleteRoom;
-        window.promoteUser = promoteUser;
-        window.banUser = banUser;
         window.showCreateRoom = showCreateRoom;
         window.showJoinRoom = showJoinRoom;
         window.listAllRooms = listAllRooms;
         window.leaveRoom = leaveRoom;
-        window.showContextMenu = showContextMenu;
-        window.hideContextMenu = hideContextMenu;
-        window.openSettings = openSettings;
-        window.closeSettings = closeSettings;
-        window.saveSettings = saveSettings;
     </script>
 </body>
 </html>
