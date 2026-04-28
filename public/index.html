@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>⚡ IAIM SECURE | ENCRYPTED CHAT v9.0 ⚡</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -12,9 +13,112 @@
             font-family: 'Inter', 'Segoe UI', 'Courier New', monospace;
             min-height: 100vh;
             overflow-x: hidden;
+            position: relative;
         }
 
-        /* ===== SIDEBAR STYLES ===== */
+        /* ===== PROFESSIONAL GRADIENT BACKGROUND (v8.0) ===== */
+        .bg-pro {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: radial-gradient(ellipse at 20% 30%, #0f172a 0%, #020617 100%);
+        }
+
+        .bg-pro::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(45deg, rgba(0,255,255,0.02) 0px, rgba(0,255,255,0.02) 2px, transparent 2px, transparent 8px);
+            pointer-events: none;
+        }
+
+        .bg-pro::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(circle, rgba(0,150,255,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* ===== SPLASH SCREEN (v8.0) ===== */
+        .splash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #020617;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: clip-path 1s cubic-bezier(0.77, 0, 0.18, 1);
+            clip-path: circle(150% at 50% 50%);
+        }
+
+        .splash-close {
+            clip-path: circle(0% at 50% 50%) !important;
+        }
+
+        .splash-content {
+            text-align: center;
+            z-index: 10;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .splash-content pre {
+            color: #38bdf8;
+            font-size: 0.65rem;
+            line-height: 1.2;
+            text-shadow: 0 0 20px #38bdf8;
+        }
+
+        .splash-progress {
+            margin-top: 2rem;
+            width: 300px;
+            text-align: center;
+        }
+
+        .splash-progress-bar {
+            width: 100%;
+            height: 2px;
+            background: rgba(56, 189, 248, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .splash-progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .splash-status {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            letter-spacing: 2px;
+            font-family: monospace;
+        }
+
+        /* ===== SIDEBAR STYLES (v9.0) ===== */
         .sidebar {
             position: fixed;
             top: 0;
@@ -31,31 +135,11 @@
             overflow-y: auto;
         }
 
-        .sidebar.open {
-            left: 0;
-        }
-
-        .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-        }
-
-        .sidebar-header h3 {
-            color: #38bdf8;
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .sidebar-header p {
-            color: #94a3b8;
-            font-size: 0.7rem;
-        }
-
-        .sidebar-menu {
-            flex: 1;
-            padding: 1rem;
-        }
-
+        .sidebar.open { left: 0; }
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid rgba(56, 189, 248, 0.2); }
+        .sidebar-header h3 { color: #38bdf8; font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .sidebar-header p { color: #94a3b8; font-size: 0.7rem; }
+        .sidebar-menu { flex: 1; padding: 1rem; }
         .sidebar-menu-item {
             display: flex;
             align-items: center;
@@ -67,25 +151,10 @@
             cursor: pointer;
             transition: all 0.2s;
         }
+        .sidebar-menu-item:hover { background: rgba(56, 189, 248, 0.1); color: #38bdf8; }
+        .sidebar-menu-item i { width: 24px; }
+        .sidebar-footer { padding: 1.5rem; border-top: 1px solid rgba(56, 189, 248, 0.2); font-size: 0.7rem; color: #64748b; text-align: center; }
 
-        .sidebar-menu-item:hover {
-            background: rgba(56, 189, 248, 0.1);
-            color: #38bdf8;
-        }
-
-        .sidebar-menu-item i {
-            width: 24px;
-        }
-
-        .sidebar-footer {
-            padding: 1.5rem;
-            border-top: 1px solid rgba(56, 189, 248, 0.2);
-            font-size: 0.7rem;
-            color: #64748b;
-            text-align: center;
-        }
-
-        /* ===== DISCORD BUTTON ===== */
         .discord-btn {
             display: flex;
             align-items: center;
@@ -102,12 +171,9 @@
             margin-top: 1rem;
             transition: transform 0.2s;
         }
+        .discord-btn:hover { transform: scale(1.02); }
 
-        .discord-btn:hover {
-            transform: scale(1.02);
-        }
-
-        /* ===== SETTINGS BUTTON ===== */
+        /* ===== BUTTONS ===== */
         .settings-btn {
             position: fixed;
             top: 20px;
@@ -125,18 +191,9 @@
             z-index: 200;
             transition: all 0.2s;
         }
+        .settings-btn:hover { transform: rotate(45deg); background: rgba(56, 189, 248, 0.2); }
+        .settings-btn i { color: #38bdf8; font-size: 1.2rem; }
 
-        .settings-btn:hover {
-            transform: rotate(45deg);
-            background: rgba(56, 189, 248, 0.2);
-        }
-
-        .settings-btn i {
-            color: #38bdf8;
-            font-size: 1.2rem;
-        }
-
-        /* ===== MENU BUTTON ===== */
         .menu-btn-side {
             position: fixed;
             top: 20px;
@@ -154,12 +211,9 @@
             z-index: 200;
             transition: all 0.2s;
         }
+        .menu-btn-side:hover { background: rgba(56, 189, 248, 0.2); }
+        .menu-btn-side i, .settings-btn i { color: #38bdf8; font-size: 1.2rem; }
 
-        .menu-btn-side:hover {
-            background: rgba(56, 189, 248, 0.2);
-        }
-
-        /* ===== OVERLAY ===== */
         .sidebar-overlay {
             position: fixed;
             top: 0;
@@ -170,16 +224,10 @@
             z-index: 999;
             display: none;
         }
+        .sidebar-overlay.active { display: block; }
 
-        .sidebar-overlay.active {
-            display: block;
-        }
-
-        /* ===== USER LIST IN SIDEBAR ===== */
-        .user-list {
-            margin-top: 1rem;
-        }
-
+        /* ===== USER LIST ===== */
+        .user-list { margin-top: 1rem; }
         .user-item {
             display: flex;
             align-items: center;
@@ -188,19 +236,8 @@
             border-radius: 8px;
             margin: 0.2rem 0;
         }
-
-        .user-item.online {
-            opacity: 1;
-        }
-
-        .user-item.offline {
-            opacity: 0.5;
-        }
-
-        .user-role-icon {
-            font-size: 0.8rem;
-        }
-
+        .user-item.online { opacity: 1; }
+        .user-item.offline { opacity: 0.5; }
         .role-owner { color: #f59e0b; }
         .role-mod { color: #10b981; }
         .role-member { color: #64748b; }
@@ -216,7 +253,6 @@
             display: none;
             min-width: 180px;
         }
-
         .context-menu-item {
             padding: 0.5rem 1rem;
             cursor: pointer;
@@ -226,10 +262,7 @@
             align-items: center;
             gap: 0.5rem;
         }
-
-        .context-menu-item:hover {
-            background: #334155;
-        }
+        .context-menu-item:hover { background: #334155; }
 
         /* ===== SETTINGS MODAL ===== */
         .settings-modal {
@@ -246,16 +279,8 @@
             width: 90%;
             max-width: 400px;
         }
-
-        .settings-modal.active {
-            display: block;
-        }
-
-        .settings-modal h3 {
-            color: #38bdf8;
-            margin-bottom: 1rem;
-        }
-
+        .settings-modal.active { display: block; }
+        .settings-modal h3 { color: #38bdf8; margin-bottom: 1rem; }
         .settings-modal select, .settings-modal input {
             width: 100%;
             padding: 0.5rem;
@@ -266,31 +291,36 @@
             color: #fff;
         }
 
-        /* ===== MAIN APP ===== */
-        .bg-pro {
+        /* ===== TOAST BİLDİRİM ===== */
+        .toast-notification {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            background: radial-gradient(ellipse at 20% 30%, #0f172a 0%, #020617 100%);
+            bottom: 30px;
+            right: 30px;
+            background: #1e293b;
+            border-left: 4px solid #38bdf8;
+            padding: 12px 20px;
+            border-radius: 12px;
+            color: #fff;
+            z-index: 10002;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
         }
+        .toast-notification.show { transform: translateX(0); }
+        .toast-notification i { margin-right: 10px; color: #38bdf8; }
 
+        /* ===== MAIN APP (v8.0 stilleri) ===== */
         .main-app {
             opacity: 0;
-            transition: all 0.6s ease;
+            transform: scale(0.98);
+            transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             width: 100%;
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 0 20px;
+            max-width: 1480px;
+            margin: 20px;
             position: relative;
-            z-index: 50;
+            z-index: 100;
         }
-
-        .main-app.visible {
-            opacity: 1;
-        }
+        .main-app.visible { opacity: 1; transform: scale(1); }
 
         .glass-card {
             background: rgba(15, 23, 42, 0.7);
@@ -299,13 +329,25 @@
             border-radius: 28px;
             padding: 2rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s;
         }
+        .glass-card:hover { border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 25px 50px -12px rgba(56, 189, 248, 0.15); }
 
         .ascii-head pre {
             color: #38bdf8;
             font-size: 0.55rem;
             text-align: center;
             margin-bottom: 1.5rem;
+            opacity: 0.8;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 1rem 0;
+            color: #e2e8f0;
+            letter-spacing: 3px;
         }
 
         .input-group {
@@ -315,13 +357,12 @@
             gap: 0.8rem;
             margin: 1rem 0;
         }
-
         .input-label {
             color: #94a3b8;
             font-weight: 500;
             min-width: 100px;
+            font-size: 0.85rem;
         }
-
         .modern-input {
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid #334155;
@@ -332,12 +373,15 @@
             font-size: 0.9rem;
             flex: 1;
             min-width: 200px;
+            transition: all 0.2s;
         }
-
         .modern-input:focus {
             outline: none;
             border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+            background: rgba(0, 0, 0, 0.7);
         }
+        .modern-input::placeholder { color: #475569; }
 
         .btn {
             border: none;
@@ -345,37 +389,47 @@
             border: 1px solid #334155;
             color: #e2e8f0;
             padding: 0.65rem 1.5rem;
+            margin: 0.2rem;
             border-radius: 40px;
+            font-weight: 500;
+            font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.2s;
+            letter-spacing: 0.5px;
         }
-
         .btn-primary {
             background: linear-gradient(135deg, #1e3a5f, #0f2a4a);
             border-color: #38bdf8;
-            color: #fff;
+            color: #f1f5f9;
         }
-
         .btn-primary:hover {
             transform: translateY(-2px);
+            background: linear-gradient(135deg, #2a4a7a, #1a3a5a);
             box-shadow: 0 5px 20px rgba(56, 189, 248, 0.3);
         }
-
         .btn-danger {
             background: linear-gradient(135deg, #3f1e1e, #2f0f0f);
             border-color: #ef4444;
             color: #fca5a5;
+        }
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #5a2a2a, #4a1a1a);
+            box-shadow: 0 5px 20px rgba(239, 68, 68, 0.3);
         }
 
         .chat-container {
             background: rgba(0, 0, 0, 0.4);
             border-radius: 20px;
             padding: 1rem;
-            height: 450px;
+            height: 420px;
             overflow-y: auto;
             margin: 1rem 0;
             border: 1px solid #1e293b;
         }
+        .chat-container::-webkit-scrollbar { width: 5px; }
+        .chat-container::-webkit-scrollbar-track { background: #0f172a; border-radius: 5px; }
+        .chat-container::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 5px; }
 
         .message {
             padding: 0.75rem;
@@ -385,11 +439,10 @@
             border-radius: 12px;
             transition: all 0.2s;
         }
-
         .message:hover {
             background: rgba(56, 189, 248, 0.1);
+            transform: translateX(4px);
         }
-
         .msg-time { color: #64748b; font-size: 0.7rem; margin-right: 12px; }
         .msg-user { color: #38bdf8; font-weight: 600; margin-right: 10px; }
         .msg-role { font-size: 0.65rem; margin-right: 8px; }
@@ -400,7 +453,6 @@
             overflow-y: auto;
             margin-top: 0.8rem;
         }
-
         .room-item {
             background: rgba(30, 41, 59, 0.5);
             padding: 0.6rem 1rem;
@@ -408,12 +460,27 @@
             border-radius: 40px;
             border-left: 3px solid #38bdf8;
             cursor: pointer;
+            transition: all 0.2s;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-
-        .room-item:hover { background: rgba(56, 189, 248, 0.15); }
+        .room-item:hover { background: rgba(56, 189, 248, 0.15); transform: translateX(5px); }
+        .room-info { flex: 1; cursor: pointer; color: #cbd5e1; }
+        .room-info strong { color: #38bdf8; }
+        .delete-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            transition: all 0.2s;
+        }
+        .delete-btn:hover { background: #ef4444; color: #fff; transform: scale(1.02); }
 
         .status-badge {
             background: rgba(56, 189, 248, 0.1);
@@ -423,13 +490,14 @@
             margin: 0.8rem 0;
             border: 1px solid #334155;
             color: #94a3b8;
+            font-size: 0.85rem;
         }
-
         hr { border-color: #1e293b; margin: 1rem 0; }
 
-        @media (max-width: 768px) {
+        @media (max-width: 680px) {
             .glass-card { padding: 1rem; }
             .input-group { flex-direction: column; align-items: stretch; }
+            .input-label { min-width: auto; }
             .ascii-head pre { font-size: 0.3rem; }
             .sidebar { width: 280px; }
         }
@@ -439,6 +507,54 @@
 
 <div class="bg-pro"></div>
 
+<!-- SPLASH SCREEN (v8.0) -->
+<div id="splashOverlay" class="splash-overlay">
+    <div class="splash-content">
+        <pre>
+╔════════════════════════════════════════════════════════════════════╗
+║  ██╗  ██╗███████╗██╗  ██╗ █████╗ ██╗  ██╗ █████╗  ██████╗██╗  ██╗  ║
+║  ██║  ██║██╔════╝╚██╗██╔╝██╔══██╗██║  ██║██╔══██╗██╔════╝██║ ██╔╝  ║
+║  ███████║█████╗   ╚███╔╝ ███████║███████║███████║██║     █████╔╝   ║
+║  ██╔══██║██╔══╝   ██╔██╗ ██╔══██║██╔══██║██╔══██║██║     ██╔═██╗   ║
+║  ██║  ██║███████╗██╔╝ ██╗██║  ██║██║  ██║██║  ██║╚██████╗██║  ██╗  ║
+║  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝  ║
+║                     IAIM SECURE COMMUNICATIONS v9.0                ║
+║            ══ ENCRYPTED CHAT • ROOM DELETE • ROLES ══              ║
+╚════════════════════════════════════════════════════════════════════╝
+        </pre>
+        <pre>
+⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀
+⢻⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⡇
+⢸⠀⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⣤⢤⣶⠶⠶⢶⣶⡤⣤⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠋⢀⠇
+⠈⣇⠀⠈⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⡴⠞⠋⢉⡴⠞⠋⣿⠀⠀⠀⡯⠙⠳⣦⡉⠙⠲⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠟⠁⠀⣼⠀
+⠀⠹⣆⠀⠀⠈⠛⢦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⠞⠋⠀⢀⣰⠏⠀⠀⠀⢻⡄⠀⢰⠇⠀⠀⠈⢻⣄⠀⠀⠙⢷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡶⠋⠁⠀⠀⣰⠃⠀
+⠀⠀⠹⣇⠀⠀⠀⠀⠉⠳⢦⣄⡀⠀⠀⠀⢀⡾⠃⠀⣠⠞⠋⠁⠀⠀⠀⠀⠀⠉⠉⠉⠀⠀⠀⠀⠀⠉⠙⢷⣄⠀⠙⢧⡀⠀⠀⠀⢀⣠⡶⠛⠁⠀⠀⠀⠀⣴⠃⠀⠀
+⠀⠀⠀⠙⢧⡀⠀⠀⠀⠀⠀⠈⠙⠳⠶⢤⣿⣄⣀⣸⠋⢠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠀⢹⣆⣀⣨⣷⡤⠶⠚⠋⠁⠀⠀⠀⠀⠀⢠⡾⠃⠀⠀⠀
+⠀⠀⠀⠀⠈⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡇⠈⡇⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⣼⠀⣼⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠏⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠈⠻⢦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⣧⠀⠀⠀⠀⠀⠀⠀⣷⠀⠀⠀⠀⠀⠀⠀⡟⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡴⠛⠁⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠳⣦⣀⠀⠀⠀⠀⠀⠀⢀⡟⠀⡏⠀⠀⠀⠀⠀⠀⢀⣿⠀⠀⠀⠀⠀⠀⠀⣿⠀⢿⡀⠀⠀⠀⠀⠀⠀⣠⡴⠞⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⡆⠉⢻⡶⢤⣀⡀⢀⡾⠁⣼⠃⠀⠀⠀⠀⠀⠀⣸⠹⣆⠀⠀⠀⠀⠀⠀⠹⣆⠘⢧⡀⢀⣠⡤⢶⡟⠉⢰⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⡏⣧⠀⢸⠃⠀⣨⠿⠋⣠⠞⠁⠀⠀⠀⠀⠀⠀⢸⡏⠀⣹⡆⠀⠀⠀⠀⠀⠀⠘⢦⣈⠛⢿⡅⠀⢸⡇⠀⡿⢻⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡕⣿⣧⣸⡀⠀⠛⡶⢶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⣹⠰⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⠶⣾⠃⠀⢸⣇⡼⡿⢸⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣇⠘⢯⡙⠷⣄⣸⠇⠀⠹⣆⠀⠀⠀⠀⠀⠀⠀⣴⠃⠀⠹⣄⠀⠀⠀⠀⠀⠀⢀⣼⠃⠀⢹⣆⣠⠞⣫⡿⠁⣼⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣄⢀⠙⢷⡘⣿⣷⡶⣄⠙⠷⣄⡀⠀⠀⠀⠘⠁⠀⠀⠀⠈⠃⠀⠀⠀⢀⣴⠞⢁⣤⢶⣾⡿⢡⡾⠋⡀⣰⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⠀⠸⣇⠈⣻⣷⣿⠳⣤⡈⠙⠓⠄⠀⠈⠳⡄⠀⣰⠛⠁⠀⠠⠞⠋⢀⣴⠟⣇⣿⡟⠀⣾⠀⠀⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡄⠀⠻⣾⠏⠸⣿⣦⡈⠛⠶⢤⣤⣤⣤⠴⡷⠶⣿⠦⣤⣤⣤⡤⠾⠋⢁⣼⣿⠁⠹⣶⠏⠀⢰⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢷⣄⠀⣿⠀⠀⠘⠿⣿⣦⣤⢴⣿⡿⠃⠀⡷⠛⣦⠀⠘⢿⣷⠦⣤⣶⣿⠟⠁⠀⢀⡿⢀⣰⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣷⠘⣷⣄⠀⠀⠀⠉⠉⠉⠁⠀⠀⠀⡇⠀⡟⠀⠀⠀⠉⠉⠉⠉⠀⠀⠀⣠⣾⠁⡟⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⣴⡏⢹⢷⣦⣄⡀⠀⣀⣤⡤⢤⡀⡧⠀⠇⢀⡤⢤⣤⡀⠀⣀⣠⣴⣿⡏⢻⣼⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠀⠈⣧⢸⡾⠁⣨⣿⡟⠙⢯⣀⠀⠀⠀⠀⠀⠀⢀⣀⡿⠉⢻⢿⡁⠘⣿⠃⡿⠀⠀⠀⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⡓⠶⠶⠿⡛⠥⠞⠉⢠⣿⣄⡀⠉⠉⠻⣦⣀⡴⠛⠉⠉⢀⣴⣿⡀⠙⠲⠬⣻⠷⠶⠶⢚⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠦⣄⣀⣀⣀⣠⣴⡋⢻⣿⡛⢳⠒⣤⠼⣿⠧⣤⢲⡞⢻⣿⠋⢹⡦⣄⣀⣀⣀⣤⠔⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠹⣆⠈⠛⣾⣿⣧⣿⠙⠛⠓⠛⠚⠛⢋⣇⡾⣿⣷⠋⠀⣼⠋⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+        </pre>
+    </div>
+    <div class="splash-progress">
+        <div class="splash-progress-bar"><div class="splash-progress-fill" id="progressFill"></div></div>
+        <div class="splash-status" id="splashStatus">Initializing secure core...</div>
+    </div>
+</div>
+
 <!-- SIDEBAR -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="sidebar" id="sidebar">
@@ -447,47 +563,22 @@
         <p>Güvenli İletişim Platformu</p>
     </div>
     <div class="sidebar-menu">
-        <div class="sidebar-menu-item" id="sidebarCreateRoomBtn">
-            <i class="fas fa-plus-circle"></i> <span>Oda Oluştur</span>
+        <div class="sidebar-menu-item" id="sidebarCreateRoomBtn"><i class="fas fa-plus-circle"></i> <span>Oda Oluştur</span></div>
+        <div class="sidebar-menu-item" id="sidebarJoinRoomBtn"><i class="fas fa-sign-in-alt"></i> <span>Odaya Katıl</span></div>
+        <div class="sidebar-menu-item" id="sidebarListRoomsBtn"><i class="fas fa-list"></i> <span>Odaları Listele</span></div>
+        <div class="sidebar-menu-item" id="sidebarLeaveRoomBtn"><i class="fas fa-sign-out-alt"></i> <span>Odadan Çık</span></div>
+        <div class="sidebar-menu-item" id="sidebarLogoutBtn"><i class="fas fa-power-off"></i> <span>Çıkış Yap</span></div>
+        <div style="margin-top: 20px;"><strong style="color: #38bdf8; font-size: 0.8rem;">👥 Odadakiler</strong>
+            <div id="onlineUsersList" class="user-list"><div style="color: #64748b; text-align: center; padding: 10px;">Bir odaya katılın</div></div>
         </div>
-        <div class="sidebar-menu-item" id="sidebarJoinRoomBtn">
-            <i class="fas fa-sign-in-alt"></i> <span>Odaya Katıl</span>
-        </div>
-        <div class="sidebar-menu-item" id="sidebarListRoomsBtn">
-            <i class="fas fa-list"></i> <span>Odaları Listele</span>
-        </div>
-        <div class="sidebar-menu-item" id="sidebarLeaveRoomBtn">
-            <i class="fas fa-sign-out-alt"></i> <span>Odadan Çık</span>
-        </div>
-        <div class="sidebar-menu-item" id="sidebarLogoutBtn">
-            <i class="fas fa-power-off"></i> <span>Çıkış Yap</span>
-        </div>
-        
-        <div style="margin-top: 20px;">
-            <strong style="color: #38bdf8; font-size: 0.8rem;">👥 Odadakiler</strong>
-            <div id="onlineUsersList" class="user-list">
-                <div style="color: #64748b; text-align: center; padding: 10px;">Bir odaya katılın</div>
-            </div>
-        </div>
-        
-        <button class="discord-btn" id="discordBtn">
-            <i class="fab fa-discord"></i> Discord'a Katıl
-        </button>
+        <button class="discord-btn" id="discordBtn"><i class="fab fa-discord"></i> Discord'a Katıl</button>
     </div>
-    <div class="sidebar-footer">
-        <i class="fas fa-code-branch"></i> Sürüm 1.0.0 | IAIM Secure Chat
-    </div>
+    <div class="sidebar-footer"><i class="fas fa-code-branch"></i> Sürüm 1.0.0 | IAIM Secure Chat</div>
 </div>
 
-<!-- SETTINGS BUTTON -->
-<div class="settings-btn" id="settingsBtn">
-    <i class="fas fa-cog"></i>
-</div>
-
-<!-- MENU BUTTON -->
-<div class="menu-btn-side" id="menuBtnSide">
-    <i class="fas fa-bars"></i>
-</div>
+<!-- BUTTONS -->
+<div class="settings-btn" id="settingsBtn"><i class="fas fa-cog"></i></div>
+<div class="menu-btn-side" id="menuBtnSide"><i class="fas fa-bars"></i></div>
 
 <!-- SETTINGS MODAL -->
 <div class="settings-modal" id="settingsModal">
@@ -501,30 +592,18 @@
         <option value="days">Gün</option>
     </select>
     <input type="number" id="msgDeleteDuration" placeholder="Süre" value="24">
-    <label>Oda Silme Ayarları</label>
-    <select id="roomDeleteType">
-        <option value="never">Hiç silme</option>
-        <option value="timeout">Süre sonunda sil</option>
-        <option value="afk">AFK olunca sil</option>
-    </select>
-    <div id="roomTimeoutSetting" style="display:none;">
-        <input type="number" id="roomTimeoutHours" placeholder="Saat" value="24">
-    </div>
     <button id="saveSettingsBtn" class="btn btn-primary" style="margin-top: 1rem; width:100%">Kaydet</button>
 </div>
 
 <!-- CONTEXT MENU -->
 <div class="context-menu" id="contextMenu">
-    <div class="context-menu-item" id="contextSetMod">
-        <i class="fas fa-shield-alt"></i> Moderatör Yap
-    </div>
-    <div class="context-menu-item" id="contextSetMember">
-        <i class="fas fa-user"></i> Üye Yap
-    </div>
-    <div class="context-menu-item" id="contextBan">
-        <i class="fas fa-ban"></i> Banla
-    </div>
+    <div class="context-menu-item" id="contextSetMod"><i class="fas fa-shield-alt"></i> Moderatör Yap</div>
+    <div class="context-menu-item" id="contextSetMember"><i class="fas fa-user"></i> Üye Yap</div>
+    <div class="context-menu-item" id="contextBan"><i class="fas fa-ban"></i> Banla</div>
 </div>
+
+<!-- TOAST -->
+<div id="toastNotification" class="toast-notification"><i class="fas fa-info-circle"></i> <span id="toastMessage">Bildirim</span></div>
 
 <!-- MAIN APP -->
 <div id="mainApp" class="main-app">
@@ -542,18 +621,18 @@
             </pre>
         </div>
 
-        <!-- LOGIN PANEL -->
-        <div id="loginPanel">
+        <!-- LOGIN PANEL (v8.0 ortada) -->
+        <div id="loginPanel" style="max-width: 500px; margin: 0 auto;">
             <div class="input-group">
                 <span class="input-label">┌─[IAIM]</span>
                 <span class="input-label">└─ USER →</span>
-                <input type="text" id="loginUsername" class="modern-input" placeholder="username">
+                <input type="text" id="loginUsername" class="modern-input" placeholder="username" autocomplete="off">
             </div>
             <div class="input-group">
                 <span class="input-label">└─ PWD →</span>
                 <input type="password" id="loginPassword" class="modern-input" placeholder="••••••••">
             </div>
-            <div style="display: flex; justify-content: center; gap: 15px;">
+            <div style="display: flex; justify-content: center; gap: 15px; margin-top: 28px;">
                 <button id="loginBtn" class="btn btn-primary">🔐 LOGIN</button>
                 <button id="registerBtn" class="btn">📝 REGISTER</button>
             </div>
@@ -561,38 +640,33 @@
 
         <!-- CHAT PANEL -->
         <div id="chatPanel" style="display: none;">
+            <div class="section-title">✦ ACTIVE SESSION ✦</div>
             <div id="roomStatus" class="status-badge">🌀 NOT CONNECTED</div>
-            
+            <hr>
             <div class="input-group">
-                <input type="text" id="newRoomName" class="modern-input" placeholder="🏠 Oda adı">
-                <input type="text" id="newRoomPass" class="modern-input" placeholder="🔒 Şifre (opsiyonel)">
-                <div class="input-group" style="margin:0">
-                    <label style="color:#94a3b8; margin-right:10px;">
-                        <input type="radio" name="room_visibility" value="public" checked> 🌍 Herkese Açık
-                    </label>
-                    <label style="color:#94a3b8;">
-                        <input type="radio" name="room_visibility" value="private"> 🔒 Gizli Oda
-                    </label>
+                <input type="text" id="newRoomName" class="modern-input" placeholder="🏠 Room name">
+                <input type="text" id="newRoomPass" class="modern-input" placeholder="🔒 Password (optional)">
+                <div style="display: flex; gap: 15px; margin-left: 10px;">
+                    <label style="color:#94a3b8;"><input type="radio" name="room_visibility" value="public" checked> 🌍 Herkese Açık</label>
+                    <label style="color:#94a3b8;"><input type="radio" name="room_visibility" value="private"> 🔒 Gizli Oda</label>
                 </div>
-                <button id="createRoomBtn" class="btn btn-primary">✨ OLUŞTUR</button>
+                <button id="createRoomBtn" class="btn btn-primary">✨ CREATE</button>
             </div>
-            
             <div class="input-group">
-                <input type="text" id="joinRoomCode" class="modern-input" placeholder="🔑 Oda kodu">
-                <input type="text" id="joinRoomPass" class="modern-input" placeholder="🔒 Şifre">
-                <button id="joinRoomBtn" class="btn">🚪 KATIL</button>
-                <button id="listRoomsBtn" class="btn">📋 LİSTELE</button>
+                <input type="text" id="joinRoomCode" class="modern-input" placeholder="🔑 Room code (#XYZ12)">
+                <input type="text" id="joinRoomPass" class="modern-input" placeholder="🔒 Room password">
+                <button id="joinRoomBtn" class="btn">🚪 JOIN</button>
+                <button id="listRoomsBtn" class="btn">📋 LIST</button>
+                <button id="leaveRoomBtn" class="btn btn-danger">🚪 LEAVE</button>
             </div>
-            
             <div id="roomListContainer" class="room-list" style="display: none;"></div>
-
             <div id="chatMessages" class="chat-container">
-                <div class="message"><span class="msg-time">[SYS]</span><span class="msg-text">⚡ HOŞ GELDİN</span></div>
+                <div class="message"><span class="msg-time">[SYS]</span><span class="msg-text">⚡ IAIM SECURE CHAT READY</span></div>
+                <div class="message"><span class="msg-time">[SYS]</span><span class="msg-text">🔒 Create or join an encrypted room</span></div>
             </div>
-
             <div class="input-group">
-                <input type="text" id="messageInput" class="modern-input" placeholder="Mesajınız..." style="flex:3;">
-                <button id="sendMsgBtn" class="btn btn-primary">📡 GÖNDER</button>
+                <input type="text" id="messageInput" class="modern-input" placeholder="Your message..." style="flex:3;" autocomplete="off">
+                <button id="sendMsgBtn" class="btn btn-primary">📡 SEND</button>
             </div>
         </div>
     </div>
@@ -610,112 +684,121 @@
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsModal = document.getElementById('settingsModal');
     const contextMenu = document.getElementById('contextMenu');
+    const toast = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
     
-    // Sidebar kontrolü
-    function toggleSidebar() {
-        sidebar.classList.toggle('open');
-        sidebarOverlay.classList.toggle('active');
+    function showToast(msg) {
+        toastMessage.innerHTML = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
     }
     
+    function toggleSidebar() { sidebar.classList.toggle('open'); sidebarOverlay.classList.toggle('active'); }
     menuBtnSide.onclick = toggleSidebar;
     sidebarOverlay.onclick = toggleSidebar;
-    
-    // Settings
     settingsBtn.onclick = () => settingsModal.classList.toggle('active');
     
-    // API Call
     async function apiCall(url, data) {
         try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
             return await res.json();
-        } catch(e) { return { error: 'Bağlantı hatası' }; }
+        } catch(e) { return { error: 'Connection error' }; }
     }
     
-    // Ses (basit)
     function beep() { try { const audio = new AudioContext(); const osc = audio.createOscillator(); const gain = audio.createGain(); osc.connect(gain); gain.connect(audio.destination); gain.gain.value = 0.1; osc.type = "sine"; osc.start(); gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.1); osc.stop(audio.currentTime + 0.1); setTimeout(() => audio.close(), 200); } catch(e) {} }
+    
+    // SPLASH SEQUENCE (v8.0)
+    const splashDiv = document.getElementById('splashOverlay');
+    const splashStatus = document.getElementById('splashStatus');
+    const progressFill = document.getElementById('progressFill');
+    const steps = [
+        { text: "Initializing secure core...", progress: 20 },
+        { text: "Loading encryption modules...", progress: 40 },
+        { text: "Establishing secure channel...", progress: 60 },
+        { text: "AFK watchdog active...", progress: 80 },
+        { text: "System ready.", progress: 100 }
+    ];
+    let stepIndex = 0;
+    const stepInterval = setInterval(() => {
+        if (stepIndex < steps.length) {
+            splashStatus.textContent = steps[stepIndex].text;
+            progressFill.style.width = steps[stepIndex].progress + '%';
+            stepIndex++;
+        } else {
+            clearInterval(stepInterval);
+            setTimeout(() => { splashDiv.classList.add('splash-close'); setTimeout(() => { splashDiv.style.display = 'none'; document.getElementById('mainApp').classList.add('visible'); }, 800); }, 500);
+        }
+    }, 400);
     
     // Register
     document.getElementById('registerBtn').onclick = async () => {
         const username = document.getElementById('loginUsername').value.trim();
         const password = document.getElementById('loginPassword').value;
-        if (!username || !password) { alert("Kullanıcı adı/şifre gerekli"); return; }
+        if (!username || !password) { showToast("❌ Username & password required"); return; }
         const res = await apiCall('/register', { username, password });
-        alert(res.success ? "Kayıt başarılı! Giriş yapın." : "Hata: " + (res.error || "Kullanıcı var"));
+        if (res.success) { showToast("✅ Registration successful! Please login."); }
+        else { showToast("❌ " + (res.error || "Registration failed")); }
     };
     
     // Login
     document.getElementById('loginBtn').onclick = async () => {
         const username = document.getElementById('loginUsername').value.trim();
         const password = document.getElementById('loginPassword').value;
-        if (!username || !password) { alert("Kullanıcı adı/şifre gerekli"); return; }
+        if (!username || !password) { showToast("❌ Username & password required"); return; }
         const res = await apiCall('/login', { username, password });
         if (res.token) {
             currentUser = res.username; token = res.token;
             document.getElementById('loginPanel').style.display = 'none';
             document.getElementById('chatPanel').style.display = 'block';
+            showToast(`✅ Welcome ${currentUser}!`);
             await refreshCurrentRoom();
             if (msgInterval) clearInterval(msgInterval);
             msgInterval = setInterval(loadMessages, 2000);
             setInterval(() => apiCall('/update_activity', { username: currentUser, token }), 25000);
             setInterval(loadOnlineUsers, 5000);
-        } else { alert("Giriş başarısız: " + (res.error || "Hata")); }
+        } else { showToast("❌ Login failed: " + (res.error || "Invalid credentials")); }
     };
     
     async function refreshCurrentRoom() {
         const data = await apiCall('/current_room', { username: currentUser, token });
         if (data.room_code) {
             currentRoom = data.room_code;
-            document.getElementById('roomStatus').innerHTML = `🔷 AKTİF ODA: ${currentRoom} | 🔒 GÜVENLİ BAĞLANTI 🔷`;
-            await loadMessages();
-            await loadOnlineUsers();
-        } else {
-            document.getElementById('roomStatus').innerHTML = "⚡ ODAYA KATIL - OLUŞTUR VEYA KATIL ⚡";
-            currentRoom = null;
-        }
+            document.getElementById('roomStatus').innerHTML = `🔷 ACTIVE ROOM: ${currentRoom} | 🔒 ENCRYPTED 🔷`;
+            await loadMessages(); await loadOnlineUsers();
+        } else { document.getElementById('roomStatus').innerHTML = "⚡ NO ROOM - CREATE OR JOIN ⚡"; currentRoom = null; }
     }
     
     async function createRoom() {
         const name = document.getElementById('newRoomName').value.trim();
         const pass = document.getElementById('newRoomPass').value;
-        const visibility = document.querySelector('input[name="room_visibility"]:checked').value;
-        const is_private = visibility === 'private';
-        if (!name) { alert("Oda adı girin"); return; }
+        const is_private = document.querySelector('input[name="room_visibility"]:checked').value === 'private';
+        if (!name) { showToast("❌ Enter room name"); return; }
         const res = await apiCall('/create_room', { username: currentUser, room_name: name, room_password: pass || null, is_private, token });
         if (res.success) {
-            alert(`✅ ODA OLUŞTU! Kod: ${res.room_code} ${pass ? '🔒 Şifreli' : ''} ${is_private ? '🔒 Gizli Oda' : '🌍 Herkese Açık'}`);
+            showToast(`✅ ROOM CREATED! Code: ${res.room_code} ${pass ? '🔒' : ''} ${is_private ? '🔒 Private' : '🌍 Public'}`);
             await joinRoomByCode(res.room_code, pass);
-            document.getElementById('newRoomName').value = '';
-            document.getElementById('newRoomPass').value = '';
-        } else { alert("Hata: " + (res.error || "Bilinmiyor")); beep(); }
+            document.getElementById('newRoomName').value = ''; document.getElementById('newRoomPass').value = '';
+        } else { showToast("❌ Failed: " + (res.error || "Unknown error")); beep(); }
     }
     
     async function joinRoomByCode(roomCode, roomPass) {
         const res = await apiCall('/join_room', { username: currentUser, room_code: roomCode, room_password: roomPass, token });
         if (res.success) {
             currentRoom = roomCode;
-            document.getElementById('roomStatus').innerHTML = `🔷 AKTİF ODA: ${currentRoom} | 🔒 GÜVENLİ BAĞLANTI 🔷`;
+            document.getElementById('roomStatus').innerHTML = `🔷 ACTIVE ROOM: ${currentRoom} | 🔒 ENCRYPTED 🔷`;
             document.getElementById('roomListContainer').style.display = 'none';
-            await loadMessages();
-            await loadOnlineUsers();
-            alert(`🎉 ${roomCode} odasına katıldınız!`);
-        } else { alert("Hata: " + (res.error || "Oda bulunamadı veya şifre hatalı")); beep(); }
+            await loadMessages(); await loadOnlineUsers();
+            showToast(`🎉 Joined room: ${roomCode}`);
+        } else { showToast("❌ " + (res.error || "Room not found or wrong password")); beep(); }
     }
     
     async function listAllRooms() {
         const rooms = await apiCall('/list_rooms', { token });
         const container = document.getElementById('roomListContainer');
-        if (!rooms.length) container.innerHTML = "<div class='room-item'>📭 Hiç oda yok</div>";
+        if (!rooms.length) container.innerHTML = "<div class='room-item'>📭 No rooms available. Create one!</div>";
         else {
-            container.innerHTML = "<strong>📡 TÜM ODALAR:</strong><br>";
-            rooms.forEach(r => {
-                container.innerHTML += `<div class='room-item' onclick="joinRoomByCode('${r.room_code}', prompt('Şifreliyse şifreyi girin:', ''))">
-                    🔓 <strong>${r.room_code}</strong> — ${r.room_name} ${r.is_locked ? '🔒' : ''} <span style="float:right;">👥 ${r.users_count || 0}</span>
-                </div>`;
-            });
+            container.innerHTML = "<strong>📡 AVAILABLE ROOMS:</strong><br>";
+            rooms.forEach(r => { container.innerHTML += `<div class='room-item' onclick="joinRoomByCode('${r.room_code}', prompt('Enter password if locked:', ''))">🔓 <strong>${r.room_code}</strong> — ${r.room_name} ${r.is_locked ? '🔒' : ''} <span style="float:right;">👥 ${r.users_count || 0}</span></div>`; });
         }
         container.style.display = 'block';
     }
@@ -724,54 +807,45 @@
         if (!currentRoom) return;
         const users = await apiCall('/room_users', { room_code: currentRoom, token });
         const container = document.getElementById('onlineUsersList');
-        if (!users.length) container.innerHTML = '<div style="color:#64748b; text-align:center;">Kimse yok</div>';
+        if (!users.length) container.innerHTML = '<div style="color:#64748b; text-align:center;">No one here</div>';
         else {
-            container.innerHTML = users.map(u => `
-                <div class="user-item ${u.isActive ? 'online' : 'offline'}" data-username="${u.username}" oncontextmenu="showContextMenu(event, '${u.username}')">
-                    <span class="user-role-icon ${u.role === 'owner' ? 'role-owner' : (u.role === 'mod' ? 'role-mod' : 'role-member')}">
-                        ${u.role === 'owner' ? '👑' : (u.role === 'mod' ? '🛡️' : '👤')}
-                    </span>
-                    <span>${u.username}</span>
-                    ${u.role === 'owner' ? '<span style="color:#f59e0b; font-size:10px;">(Sahip)</span>' : (u.role === 'mod' ? '<span style="color:#10b981; font-size:10px;">(Mod)</span>' : '')}
-                    ${u.isActive ? '<span style="color:#10b981;">●</span>' : '<span style="color:#64748b;">○</span>'}
-                </div>
-            `).join('');
+            container.innerHTML = users.map(u => `<div class="user-item ${u.isActive ? 'online' : 'offline'}" data-username="${u.username}" oncontextmenu="showContextMenu(event, '${u.username}')"><span class="user-role-icon ${u.role === 'owner' ? 'role-owner' : (u.role === 'mod' ? 'role-mod' : 'role-member')}">${u.role === 'owner' ? '👑' : (u.role === 'mod' ? '🛡️' : '👤')}</span><span>${u.username}</span>${u.role === 'owner' ? '<span style="color:#f59e0b; font-size:10px;">(Owner)</span>' : (u.role === 'mod' ? '<span style="color:#10b981; font-size:10px;">(Mod)</span>' : '')}${u.isActive ? '<span style="color:#10b981;">●</span>' : '<span style="color:#64748b;">○</span>'}</div>`).join('');
         }
     }
     
     function showContextMenu(e, username) {
         e.preventDefault();
+        if (username === currentUser) return;
         currentContextUser = username;
         contextMenu.style.display = 'block';
         contextMenu.style.left = e.pageX + 'px';
         contextMenu.style.top = e.pageY + 'px';
         return false;
     }
-    
     document.addEventListener('click', () => contextMenu.style.display = 'none');
     
     document.getElementById('contextSetMod').onclick = async () => {
         if (!currentContextUser) return;
         const res = await apiCall('/set_role', { username: currentUser, targetUsername: currentContextUser, role: 'mod', room_code: currentRoom, token });
-        if (res.success) { alert(`${currentContextUser} moderatör yapıldı!`); loadOnlineUsers(); }
-        else alert("Yetkiniz yok!");
+        if (res.success) { showToast(`${currentContextUser} is now moderator!`); loadOnlineUsers(); }
+        else showToast("You don't have permission!");
         contextMenu.style.display = 'none';
     };
     
     document.getElementById('contextSetMember').onclick = async () => {
         if (!currentContextUser) return;
         const res = await apiCall('/set_role', { username: currentUser, targetUsername: currentContextUser, role: 'member', room_code: currentRoom, token });
-        if (res.success) { alert(`${currentContextUser} üye yapıldı!`); loadOnlineUsers(); }
-        else alert("Yetkiniz yok!");
+        if (res.success) { showToast(`${currentContextUser} is now member!`); loadOnlineUsers(); }
+        else showToast("You don't have permission!");
         contextMenu.style.display = 'none';
     };
     
     document.getElementById('contextBan').onclick = async () => {
         if (!currentContextUser) return;
-        if (confirm(`${currentContextUser} kullanıcısını banlamak istediğinize emin misiniz?`)) {
+        if (confirm(`Ban ${currentContextUser}? This cannot be undone!`)) {
             const res = await apiCall('/ban_user', { username: currentUser, targetUsername: currentContextUser, room_code: currentRoom, token });
-            if (res.success) { alert(`${currentContextUser} banlandı!`); loadOnlineUsers(); }
-            else alert("Yetkiniz yok!");
+            if (res.success) { showToast(`${currentContextUser} banned!`); loadOnlineUsers(); }
+            else showToast("You don't have permission!");
         }
         contextMenu.style.display = 'none';
     };
@@ -780,20 +854,13 @@
     async function loadMessages() {
         if (!currentRoom || !currentUser) return;
         const msgs = await apiCall('/messages', { username: currentUser, token });
-        if (msgs.length !== lastMsgCount) beep();
+        if (msgs.length > lastMsgCount && lastMsgCount !== 0) { showToast("📩 New message!"); beep(); }
         lastMsgCount = msgs.length;
         const box = document.getElementById('chatMessages');
-        if (!msgs.length) box.innerHTML = '<div class="message"><span class="msg-text">💬 Mesaj yok</span></div>';
+        if (!msgs.length) box.innerHTML = '<div class="message"><span class="msg-text">💬 No messages yet.</span></div>';
         else {
             const roleIcons = { owner: '👑', mod: '🛡️', member: '👤' };
-            box.innerHTML = msgs.map(m => `
-                <div class="message">
-                    <span class="msg-time">[${new Date(m.timestamp).toLocaleTimeString()}]</span>
-                    <span class="msg-role">${roleIcons[m.role] || '👤'}</span>
-                    <span class="msg-user">${escapeHtml(m.from_user)}</span>
-                    <span class="msg-text">: ${escapeHtml(m.message)}</span>
-                </div>
-            `).join('');
+            box.innerHTML = msgs.map(m => `<div class="message"><span class="msg-time">[${new Date(m.timestamp).toLocaleTimeString()}]</span><span class="msg-role">${roleIcons[m.role] || '👤'}</span><span class="msg-user">${escapeHtml(m.from_user)}</span><span class="msg-text">: ${escapeHtml(m.message)}</span></div>`).join('');
         }
         box.scrollTop = box.scrollHeight;
     }
@@ -801,13 +868,11 @@
     async function sendMessage() {
         const msg = document.getElementById('messageInput').value.trim();
         if (!msg) return;
-        if (!currentRoom) { alert("Önce bir odaya katıl"); return; }
+        if (!currentRoom) { showToast("❌ Join a room first!"); return; }
         const res = await apiCall('/send', { from: currentUser, message: msg, token });
-        if (res.success) {
-            document.getElementById('messageInput').value = '';
-            await loadMessages();
-        } else if (res.waitTime) alert(res.error);
-        else alert("Gönderilemedi");
+        if (res.success) { document.getElementById('messageInput').value = ''; await loadMessages(); }
+        else if (res.waitTime) showToast(res.error);
+        else showToast("❌ Failed to send");
     }
     
     async function logout() {
@@ -819,19 +884,19 @@
         document.getElementById('loginUsername').value = '';
         document.getElementById('loginPassword').value = '';
         document.getElementById('onlineUsersList').innerHTML = '<div style="color:#64748b;">Bir odaya katılın</div>';
+        showToast("Logged out");
     }
     
     function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m)); }
     
-    // Butonlar
+    // Buttons
     document.getElementById('createRoomBtn').onclick = createRoom;
     document.getElementById('joinRoomBtn').onclick = () => {
         const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
         const pass = document.getElementById('joinRoomPass').value;
-        if (!code) { alert("Oda kodu girin"); return; }
+        if (!code) { showToast("❌ Enter room code!"); return; }
         joinRoomByCode(code, pass);
-        document.getElementById('joinRoomCode').value = '';
-        document.getElementById('joinRoomPass').value = '';
+        document.getElementById('joinRoomCode').value = ''; document.getElementById('joinRoomPass').value = '';
     };
     document.getElementById('listRoomsBtn').onclick = listAllRooms;
     document.getElementById('sendMsgBtn').onclick = sendMessage;
@@ -840,11 +905,7 @@
     document.getElementById('sidebarListRoomsBtn').onclick = listAllRooms;
     document.getElementById('sidebarLogoutBtn').onclick = logout;
     document.getElementById('discordBtn').onclick = () => window.open('https://discord.gg/HEXAHACK', '_blank');
-    
     document.getElementById('messageInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-    
-    window.joinRoomByCode = joinRoomByCode;
-    
     document.getElementById('saveSettingsBtn').onclick = async () => {
         const msgType = document.getElementById('msgDeleteType').value;
         const msgDuration = parseInt(document.getElementById('msgDeleteDuration').value);
@@ -854,14 +915,11 @@
         else if (msgType === 'hours') durationType = 'hours';
         else if (msgType === 'days') durationType = 'days';
         const res = await apiCall('/set_message_settings', { token, enabled: msgType !== 'never', duration: msgDuration, durationType });
-        if (res.success) alert("Ayarlar kaydedildi!");
+        if (res.success) showToast("Settings saved!");
         settingsModal.classList.remove('active');
     };
     
-    // Splash
-    setTimeout(() => {
-        document.getElementById('mainApp').classList.add('visible');
-    }, 1000);
+    window.joinRoomByCode = joinRoomByCode;
 </script>
 </body>
 </html>
